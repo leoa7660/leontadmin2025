@@ -30,6 +30,7 @@ import {
   Upload,
   FileSpreadsheet,
   Database,
+  Loader2,
 } from "lucide-react"
 import {
   AlertDialog,
@@ -43,18 +44,22 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { createClient, updateClient, deleteClient } from "../actions/database"
+import { useToast } from "@/hooks/use-toast"
+import { createClient, updateClient, deleteClient, importClients } from "../actions/database"
 
 interface ClientsManagerProps {
   clients: Client[]
-  setClients: (clients: Client[]) => void
   onDataChange: () => Promise<void>
 }
 
-export function ClientsManager({ clients, setClients, onDataChange }: ClientsManagerProps) {
+export function ClientsManager({ clients, onDataChange }: ClientsManagerProps) {
   const [isDialogOpen, setIsDialogOpen] = useState(false)
   const [editingClient, setEditingClient] = useState<Client | null>(null)
   const [searchTerm, setSearchTerm] = useState("")
+  const [isLoading, setIsLoading] = useState(false)
+  const [isDeleting, setIsDeleting] = useState<string | null>(null)
+  const { toast } = useToast()
+
   const [formData, setFormData] = useState({
     name: "",
     email: "",
@@ -103,6 +108,7 @@ export function ClientsManager({ clients, setClients, onDataChange }: ClientsMan
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    setIsLoading(true)
 
     try {
       if (editingClient) {
@@ -118,6 +124,11 @@ export function ClientsManager({ clients, setClients, onDataChange }: ClientsMan
           numeroPasaporte: formData.numeroPasaporte || undefined,
           vencimientoPasaporte: formData.vencimientoPasaporte ? new Date(formData.vencimientoPasaporte) : undefined,
         })
+
+        toast({
+          title: "Cliente actualizado",
+          description: `El cliente ${formData.name} ha sido actualizado exitosamente.`,
+        })
       } else {
         // Crear nuevo cliente
         await createClient({
@@ -131,6 +142,11 @@ export function ClientsManager({ clients, setClients, onDataChange }: ClientsMan
           numeroPasaporte: formData.numeroPasaporte || undefined,
           vencimientoPasaporte: formData.vencimientoPasaporte ? new Date(formData.vencimientoPasaporte) : undefined,
         })
+
+        toast({
+          title: "Cliente creado",
+          description: `El cliente ${formData.name} ha sido creado exitosamente.`,
+        })
       }
 
       // Recargar datos
@@ -138,7 +154,14 @@ export function ClientsManager({ clients, setClients, onDataChange }: ClientsMan
       resetForm()
     } catch (error) {
       console.error("Error saving client:", error)
-      alert("Error al guardar el cliente. Por favor, intenta de nuevo.")
+      toast({
+        title: "Error",
+        description:
+          error instanceof Error ? error.message : "Error al guardar el cliente. Por favor, intenta de nuevo.",
+        variant: "destructive",
+      })
+    } finally {
+      setIsLoading(false)
     }
   }
 
@@ -175,12 +198,26 @@ export function ClientsManager({ clients, setClients, onDataChange }: ClientsMan
   }
 
   const handleDelete = async (clientId: string) => {
+    setIsDeleting(clientId)
+
     try {
       await deleteClient(clientId)
       await onDataChange()
+
+      toast({
+        title: "Cliente eliminado",
+        description: "El cliente ha sido eliminado exitosamente.",
+      })
     } catch (error) {
       console.error("Error deleting client:", error)
-      alert("Error al eliminar el cliente. Por favor, intenta de nuevo.")
+      toast({
+        title: "Error",
+        description:
+          error instanceof Error ? error.message : "Error al eliminar el cliente. Por favor, intenta de nuevo.",
+        variant: "destructive",
+      })
+    } finally {
+      setIsDeleting(null)
     }
   }
 
@@ -263,7 +300,11 @@ export function ClientsManager({ clients, setClients, onDataChange }: ClientsMan
           ]
           setImportPreview(mockData)
         } catch (error) {
-          alert("Error al leer el archivo. Asegúrate de que sea un archivo Excel válido.")
+          toast({
+            title: "Error",
+            description: "Error al leer el archivo. Asegúrate de que sea un archivo Excel válido.",
+            variant: "destructive",
+          })
         }
       }
       reader.readAsArrayBuffer(file)
@@ -271,27 +312,43 @@ export function ClientsManager({ clients, setClients, onDataChange }: ClientsMan
   }
 
   // Función para confirmar la importación
-  const confirmImport = () => {
-    const newClients: Client[] = importPreview.map((row, index) => ({
-      id: (Date.now() + index).toString(),
-      name: row.name || "",
-      email: row.email || "",
-      phone: row.phone || "",
-      address: row.address || "",
-      dni: row.dni || "",
-      fechaNacimiento: new Date(row.fechaNacimiento || Date.now()),
-      vencimientoDni: row.vencimientoDni ? new Date(row.vencimientoDni) : undefined,
-      numeroPasaporte: row.numeroPasaporte || undefined,
-      vencimientoPasaporte: row.vencimientoPasaporte ? new Date(row.vencimientoPasaporte) : undefined,
-      createdAt: new Date(),
-    }))
+  const confirmImport = async () => {
+    try {
+      setIsLoading(true)
 
-    setClients([...clients, ...newClients])
-    setIsImportDialogOpen(false)
-    setImportFile(null)
-    setImportPreview([])
+      const newClientsData = importPreview.map((row) => ({
+        name: row.name || "",
+        email: row.email || "",
+        phone: row.phone || "",
+        address: row.address || "",
+        dni: row.dni || "",
+        fechaNacimiento: new Date(row.fechaNacimiento || Date.now()),
+        vencimientoDni: row.vencimientoDni ? new Date(row.vencimientoDni) : undefined,
+        numeroPasaporte: row.numeroPasaporte || undefined,
+        vencimientoPasaporte: row.vencimientoPasaporte ? new Date(row.vencimientoPasaporte) : undefined,
+      }))
 
-    alert(`Se importaron ${newClients.length} clientes exitosamente.`)
+      await importClients(newClientsData)
+      await onDataChange()
+
+      setIsImportDialogOpen(false)
+      setImportFile(null)
+      setImportPreview([])
+
+      toast({
+        title: "Importación exitosa",
+        description: `Se importaron ${newClientsData.length} clientes exitosamente.`,
+      })
+    } catch (error) {
+      console.error("Error importing clients:", error)
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Error al importar clientes.",
+        variant: "destructive",
+      })
+    } finally {
+      setIsLoading(false)
+    }
   }
 
   // Función para exportar backup de clientes
@@ -369,6 +426,7 @@ López María Elena,maria.lopez@email.com,11-8765-4321,Av. Santa Fe 5678,8765432
                           onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                           placeholder="Ej: García, Juan Carlos"
                           required
+                          disabled={isLoading}
                         />
                       </div>
 
@@ -380,6 +438,7 @@ López María Elena,maria.lopez@email.com,11-8765-4321,Av. Santa Fe 5678,8765432
                             type="email"
                             value={formData.email}
                             onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                            disabled={isLoading}
                           />
                         </div>
                         <div className="grid gap-2">
@@ -391,6 +450,7 @@ López María Elena,maria.lopez@email.com,11-8765-4321,Av. Santa Fe 5678,8765432
                             value={formData.phone}
                             onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
                             required
+                            disabled={isLoading}
                           />
                         </div>
                       </div>
@@ -404,6 +464,7 @@ López María Elena,maria.lopez@email.com,11-8765-4321,Av. Santa Fe 5678,8765432
                           value={formData.address}
                           onChange={(e) => setFormData({ ...formData, address: e.target.value })}
                           required
+                          disabled={isLoading}
                         />
                       </div>
 
@@ -418,6 +479,7 @@ López María Elena,maria.lopez@email.com,11-8765-4321,Av. Santa Fe 5678,8765432
                             value={formData.fechaNacimiento}
                             onChange={(e) => setFormData({ ...formData, fechaNacimiento: e.target.value })}
                             required
+                            disabled={isLoading}
                           />
                         </div>
                         <div className="grid gap-2">
@@ -430,6 +492,7 @@ López María Elena,maria.lopez@email.com,11-8765-4321,Av. Santa Fe 5678,8765432
                             onChange={(e) => setFormData({ ...formData, dni: e.target.value })}
                             placeholder="12345678"
                             required
+                            disabled={isLoading}
                           />
                         </div>
                       </div>
@@ -441,6 +504,7 @@ López María Elena,maria.lopez@email.com,11-8765-4321,Av. Santa Fe 5678,8765432
                           type="date"
                           value={formData.vencimientoDni}
                           onChange={(e) => setFormData({ ...formData, vencimientoDni: e.target.value })}
+                          disabled={isLoading}
                         />
                         <p className="text-xs text-muted-foreground">Dejar vacío si el DNI no tiene vencimiento</p>
                       </div>
@@ -455,6 +519,7 @@ López María Elena,maria.lopez@email.com,11-8765-4321,Av. Santa Fe 5678,8765432
                               value={formData.numeroPasaporte}
                               onChange={(e) => setFormData({ ...formData, numeroPasaporte: e.target.value })}
                               placeholder="ABC123456"
+                              disabled={isLoading}
                             />
                           </div>
                           <div className="grid gap-2">
@@ -464,16 +529,20 @@ López María Elena,maria.lopez@email.com,11-8765-4321,Av. Santa Fe 5678,8765432
                               type="date"
                               value={formData.vencimientoPasaporte}
                               onChange={(e) => setFormData({ ...formData, vencimientoPasaporte: e.target.value })}
+                              disabled={isLoading}
                             />
                           </div>
                         </div>
                       </div>
                     </div>
                     <DialogFooter>
-                      <Button type="button" variant="outline" onClick={resetForm}>
+                      <Button type="button" variant="outline" onClick={resetForm} disabled={isLoading}>
                         Cancelar
                       </Button>
-                      <Button type="submit">{editingClient ? "Guardar Cambios" : "Crear Cliente"}</Button>
+                      <Button type="submit" disabled={isLoading}>
+                        {isLoading && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+                        {editingClient ? "Guardar Cambios" : "Crear Cliente"}
+                      </Button>
                     </DialogFooter>
                   </form>
                 </DialogContent>
@@ -556,8 +625,12 @@ López María Elena,maria.lopez@email.com,11-8765-4321,Av. Santa Fe 5678,8765432
                             </Button>
                             <AlertDialog>
                               <AlertDialogTrigger asChild>
-                                <Button variant="outline" size="sm">
-                                  <Trash2 className="h-4 w-4" />
+                                <Button variant="outline" size="sm" disabled={isDeleting === client.id}>
+                                  {isDeleting === client.id ? (
+                                    <Loader2 className="h-4 w-4 animate-spin" />
+                                  ) : (
+                                    <Trash2 className="h-4 w-4" />
+                                  )}
                                 </Button>
                               </AlertDialogTrigger>
                               <AlertDialogContent>
@@ -646,7 +719,7 @@ López María Elena,maria.lopez@email.com,11-8765-4321,Av. Santa Fe 5678,8765432
                         </TableCell>
                         <TableCell>
                           <div className="space-y-1">
-                            {renderDocumentStatus(client.vencimientoDni, "DNI")}
+                            {client.vencimientoDni && renderDocumentStatus(client.vencimientoDni, "DNI")}
                             {client.numeroPasaporte &&
                               client.vencimientoPasaporte &&
                               renderDocumentStatus(client.vencimientoPasaporte, "Pasaporte")}
@@ -801,11 +874,12 @@ López María Elena,maria.lopez@email.com,11-8765-4321,Av. Santa Fe 5678,8765432
           </div>
 
           <DialogFooter>
-            <Button variant="outline" onClick={() => setIsImportDialogOpen(false)}>
+            <Button variant="outline" onClick={() => setIsImportDialogOpen(false)} disabled={isLoading}>
               Cancelar
             </Button>
             {importPreview.length > 0 && (
-              <Button onClick={confirmImport}>
+              <Button onClick={confirmImport} disabled={isLoading}>
+                {isLoading && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
                 <Database className="h-4 w-4 mr-2" />
                 Importar {importPreview.length} Clientes
               </Button>

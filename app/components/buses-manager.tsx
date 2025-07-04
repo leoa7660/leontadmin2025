@@ -1,7 +1,7 @@
 "use client"
 
 import type React from "react"
-import { useState, useRef } from "react"
+import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -16,8 +16,11 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Badge } from "@/components/ui/badge"
+import { useToast } from "@/hooks/use-toast"
 import type { Bus } from "../page"
-import { Plus, Edit, Trash2, Search, BusIcon, Upload, Eye, X, ImageIcon, Loader2 } from "lucide-react"
+import { Plus, Edit, Trash2, Search, Upload, Loader2 } from "lucide-react"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -29,27 +32,27 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
-import { useToast } from "@/hooks/use-toast"
-import Image from "next/image"
 import { createBus, updateBus, deleteBus } from "../actions/database"
 
 interface BusesManagerProps {
   buses: Bus[]
-  setBuses: (buses: Bus[]) => void
-  onDataChange?: () => void
+  onDataChange: () => void
 }
 
-export function BusesManager({ buses, setBuses, onDataChange }: BusesManagerProps) {
+const TIPOS_SERVICIO = [
+  { value: "ejecutivo", label: "Ejecutivo" },
+  { value: "semicama", label: "Semicama" },
+  { value: "cama", label: "Cama" },
+  { value: "suite", label: "Suite" },
+]
+
+export function BusesManager({ buses, onDataChange }: BusesManagerProps) {
   const [isDialogOpen, setIsDialogOpen] = useState(false)
   const [editingBus, setEditingBus] = useState<Bus | null>(null)
   const [searchTerm, setSearchTerm] = useState("")
-  const [selectedImage, setSelectedImage] = useState<string | null>(null)
-  const [isImageDialogOpen, setIsImageDialogOpen] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
   const [isDeleting, setIsDeleting] = useState<string | null>(null)
-  const fileInputRef = useRef<HTMLInputElement>(null)
   const { toast } = useToast()
-
   const [formData, setFormData] = useState({
     patente: "",
     asientos: "",
@@ -62,45 +65,6 @@ export function BusesManager({ buses, setBuses, onDataChange }: BusesManagerProp
       bus.patente.toLowerCase().includes(searchTerm.toLowerCase()) ||
       bus.tipoServicio.toLowerCase().includes(searchTerm.toLowerCase()),
   )
-
-  const handleImageUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0]
-    if (file) {
-      // Validar tipo de archivo
-      if (!file.type.startsWith("image/")) {
-        toast({
-          title: "Error",
-          description: "Por favor selecciona un archivo de imagen válido",
-          variant: "destructive",
-        })
-        return
-      }
-
-      // Validar tamaño (máximo 5MB)
-      if (file.size > 5 * 1024 * 1024) {
-        toast({
-          title: "Error",
-          description: "La imagen debe ser menor a 5MB",
-          variant: "destructive",
-        })
-        return
-      }
-
-      const reader = new FileReader()
-      reader.onload = (e) => {
-        const base64String = e.target?.result as string
-        setFormData({ ...formData, imagenDistribucion: base64String })
-      }
-      reader.readAsDataURL(file)
-    }
-  }
-
-  const removeImage = () => {
-    setFormData({ ...formData, imagenDistribucion: "" })
-    if (fileInputRef.current) {
-      fileInputRef.current.value = ""
-    }
-  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -115,27 +79,21 @@ export function BusesManager({ buses, setBuses, onDataChange }: BusesManagerProp
       }
 
       if (editingBus) {
-        // Editar bus existente
         await updateBus(editingBus.id, busData)
         toast({
-          title: "Éxito",
-          description: "Bus actualizado correctamente",
+          title: "Bus actualizado",
+          description: `El bus ${formData.patente} ha sido actualizado correctamente.`,
         })
       } else {
-        // Crear nuevo bus
         await createBus(busData)
         toast({
-          title: "Éxito",
-          description: "Bus creado correctamente",
+          title: "Bus creado",
+          description: `El bus ${formData.patente} ha sido creado correctamente.`,
         })
-      }
-
-      // Recargar datos
-      if (onDataChange) {
-        await onDataChange()
       }
 
       resetForm()
+      onDataChange() // Recargar datos
     } catch (error) {
       console.error("Error saving bus:", error)
       toast({
@@ -157,9 +115,6 @@ export function BusesManager({ buses, setBuses, onDataChange }: BusesManagerProp
     })
     setEditingBus(null)
     setIsDialogOpen(false)
-    if (fileInputRef.current) {
-      fileInputRef.current.value = ""
-    }
   }
 
   const handleEdit = (bus: Bus) => {
@@ -175,17 +130,16 @@ export function BusesManager({ buses, setBuses, onDataChange }: BusesManagerProp
 
   const handleDelete = async (busId: string) => {
     setIsDeleting(busId)
+
     try {
       await deleteBus(busId)
+
       toast({
-        title: "Éxito",
-        description: "Bus eliminado correctamente",
+        title: "Bus eliminado",
+        description: "El bus ha sido eliminado correctamente.",
       })
 
-      // Recargar datos
-      if (onDataChange) {
-        await onDataChange()
-      }
+      onDataChange() // Recargar datos
     } catch (error) {
       console.error("Error deleting bus:", error)
       toast({
@@ -198,15 +152,53 @@ export function BusesManager({ buses, setBuses, onDataChange }: BusesManagerProp
     }
   }
 
-  const openImageDialog = (imageUrl: string) => {
-    setSelectedImage(imageUrl)
-    setIsImageDialogOpen(true)
+  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (file) {
+      // Validar tipo de archivo
+      if (!file.type.startsWith("image/")) {
+        toast({
+          title: "Error",
+          description: "Por favor selecciona un archivo de imagen válido.",
+          variant: "destructive",
+        })
+        return
+      }
+
+      // Validar tamaño (máximo 5MB)
+      if (file.size > 5 * 1024 * 1024) {
+        toast({
+          title: "Error",
+          description: "La imagen debe ser menor a 5MB.",
+          variant: "destructive",
+        })
+        return
+      }
+
+      const reader = new FileReader()
+      reader.onload = (event) => {
+        const result = event.target?.result as string
+        setFormData({ ...formData, imagenDistribucion: result })
+      }
+      reader.readAsDataURL(file)
+    }
   }
 
-  const handleNewBus = () => {
-    setEditingBus(null)
-    resetForm()
-    setIsDialogOpen(true)
+  const getTipoServicioLabel = (tipo: string) => {
+    return TIPOS_SERVICIO.find((t) => t.value === tipo)?.label || tipo
+  }
+
+  const getTipoServicioBadgeVariant = (tipo: string) => {
+    switch (tipo) {
+      case "suite":
+        return "default"
+      case "cama":
+        return "secondary"
+      case "semicama":
+        return "outline"
+      default:
+        return "outline"
+    }
   }
 
   return (
@@ -216,16 +208,16 @@ export function BusesManager({ buses, setBuses, onDataChange }: BusesManagerProp
           <div className="flex items-center justify-between">
             <div>
               <CardTitle>Gestión de Buses</CardTitle>
-              <CardDescription>Administra la flota de buses de tu agencia</CardDescription>
+              <CardDescription>Administra la flota de buses de la agencia</CardDescription>
             </div>
             <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
               <DialogTrigger asChild>
-                <Button onClick={handleNewBus}>
+                <Button onClick={() => setEditingBus(null)}>
                   <Plus className="h-4 w-4 mr-2" />
                   Nuevo Bus
                 </Button>
               </DialogTrigger>
-              <DialogContent className="sm:max-w-[600px]">
+              <DialogContent className="sm:max-w-[500px]">
                 <DialogHeader>
                   <DialogTitle>{editingBus ? "Editar Bus" : "Nuevo Bus"}</DialogTitle>
                   <DialogDescription>
@@ -235,7 +227,7 @@ export function BusesManager({ buses, setBuses, onDataChange }: BusesManagerProp
                 <form onSubmit={handleSubmit}>
                   <div className="grid gap-4 py-4">
                     <div className="grid gap-2">
-                      <Label htmlFor="patente">Número de Patente</Label>
+                      <Label htmlFor="patente">Patente</Label>
                       <Input
                         id="patente"
                         value={formData.patente}
@@ -251,7 +243,7 @@ export function BusesManager({ buses, setBuses, onDataChange }: BusesManagerProp
                         id="asientos"
                         type="number"
                         min="1"
-                        max="60"
+                        max="100"
                         value={formData.asientos}
                         onChange={(e) => setFormData({ ...formData, asientos: e.target.value })}
                         required
@@ -260,71 +252,47 @@ export function BusesManager({ buses, setBuses, onDataChange }: BusesManagerProp
                     </div>
                     <div className="grid gap-2">
                       <Label htmlFor="tipoServicio">Tipo de Servicio</Label>
-                      <Input
-                        id="tipoServicio"
+                      <Select
                         value={formData.tipoServicio}
-                        onChange={(e) => setFormData({ ...formData, tipoServicio: e.target.value })}
-                        placeholder="Ej: Ejecutivo, Semi-cama, Cama"
+                        onValueChange={(value) => setFormData({ ...formData, tipoServicio: value })}
                         required
                         disabled={isLoading}
-                      />
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Seleccionar tipo de servicio" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {TIPOS_SERVICIO.map((tipo) => (
+                            <SelectItem key={tipo.value} value={tipo.value}>
+                              {tipo.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                     </div>
                     <div className="grid gap-2">
-                      <Label htmlFor="imagen">Distribución de Butacas (Imagen)</Label>
-                      <div className="space-y-2">
-                        <div className="flex items-center gap-2">
-                          <Input
-                            ref={fileInputRef}
-                            type="file"
-                            accept="image/*"
-                            onChange={handleImageUpload}
-                            className="hidden"
-                            id="imagen-upload"
-                            disabled={isLoading}
-                          />
-                          <Button
-                            type="button"
-                            variant="outline"
-                            onClick={() => fileInputRef.current?.click()}
-                            className="flex items-center gap-2"
-                            disabled={isLoading}
-                          >
-                            <Upload className="h-4 w-4" />
-                            {formData.imagenDistribucion ? "Cambiar Imagen" : "Subir Imagen"}
-                          </Button>
-                          {formData.imagenDistribucion && (
-                            <Button
-                              type="button"
-                              variant="outline"
-                              size="sm"
-                              onClick={removeImage}
-                              disabled={isLoading}
-                            >
-                              <X className="h-4 w-4" />
-                            </Button>
-                          )}
-                        </div>
-                        <p className="text-xs text-muted-foreground">
-                          Formatos soportados: JPG, PNG, GIF. Tamaño máximo: 5MB
-                        </p>
-                        {formData.imagenDistribucion && (
-                          <div className="mt-2">
-                            <div className="relative w-full max-w-xs">
-                              <Image
-                                src={formData.imagenDistribucion || "/placeholder.svg"}
-                                alt="Vista previa de distribución"
-                                width={200}
-                                height={150}
-                                className="rounded-lg border object-cover cursor-pointer hover:opacity-80 transition-opacity"
-                                onClick={() => openImageDialog(formData.imagenDistribucion)}
-                              />
-                              <div className="absolute inset-0 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity bg-black/20 rounded-lg">
-                                <Eye className="h-6 w-6 text-white" />
-                              </div>
-                            </div>
-                          </div>
-                        )}
+                      <Label htmlFor="imagen">Imagen de Distribución de Asientos</Label>
+                      <div className="flex items-center gap-2">
+                        <Input
+                          id="imagen"
+                          type="file"
+                          accept="image/*"
+                          onChange={handleImageUpload}
+                          disabled={isLoading}
+                        />
+                        <Button type="button" variant="outline" size="sm" disabled={isLoading}>
+                          <Upload className="h-4 w-4" />
+                        </Button>
                       </div>
+                      {formData.imagenDistribucion && (
+                        <div className="mt-2">
+                          <img
+                            src={formData.imagenDistribucion || "/placeholder.svg"}
+                            alt="Distribución de asientos"
+                            className="max-w-full h-32 object-contain border rounded"
+                          />
+                        </div>
+                      )}
                     </div>
                   </div>
                   <DialogFooter>
@@ -360,62 +328,35 @@ export function BusesManager({ buses, setBuses, onDataChange }: BusesManagerProp
                   <TableHead>Asientos</TableHead>
                   <TableHead>Tipo de Servicio</TableHead>
                   <TableHead>Distribución</TableHead>
-                  <TableHead>Fecha Registro</TableHead>
+                  <TableHead>Fecha Creación</TableHead>
                   <TableHead>Acciones</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {filteredBuses.map((bus) => (
                   <TableRow key={bus.id}>
-                    <TableCell className="font-medium">
-                      <div className="flex items-center">
-                        <BusIcon className="h-4 w-4 mr-2 text-muted-foreground" />
-                        {bus.patente}
-                      </div>
+                    <TableCell className="font-medium">{bus.patente}</TableCell>
+                    <TableCell>{bus.asientos}</TableCell>
+                    <TableCell>
+                      <Badge variant={getTipoServicioBadgeVariant(bus.tipoServicio)}>
+                        {getTipoServicioLabel(bus.tipoServicio)}
+                      </Badge>
                     </TableCell>
-                    <TableCell>{bus.asientos} asientos</TableCell>
-                    <TableCell>{bus.tipoServicio}</TableCell>
                     <TableCell>
                       {bus.imagenDistribucion ? (
-                        <div className="flex items-center gap-2">
-                          <div className="relative">
-                            <Image
-                              src={bus.imagenDistribucion || "/placeholder.svg"}
-                              alt={`Distribución ${bus.patente}`}
-                              width={40}
-                              height={30}
-                              className="rounded border object-cover cursor-pointer hover:opacity-80 transition-opacity"
-                              onClick={() => openImageDialog(bus.imagenDistribucion!)}
-                            />
-                            <div className="absolute inset-0 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity bg-black/20 rounded">
-                              <Eye className="h-3 w-3 text-white" />
-                            </div>
-                          </div>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => openImageDialog(bus.imagenDistribucion!)}
-                            className="h-6 px-2 text-xs"
-                          >
-                            Ver
-                          </Button>
-                        </div>
+                        <img
+                          src={bus.imagenDistribucion || "/placeholder.svg"}
+                          alt="Distribución"
+                          className="w-12 h-8 object-contain border rounded"
+                        />
                       ) : (
-                        <div className="flex items-center gap-1 text-muted-foreground">
-                          <ImageIcon className="h-4 w-4" />
-                          <span className="text-xs">Sin imagen</span>
-                        </div>
+                        <span className="text-muted-foreground">Sin imagen</span>
                       )}
                     </TableCell>
                     <TableCell>{bus.createdAt.toLocaleDateString()}</TableCell>
                     <TableCell>
                       <div className="flex items-center space-x-2">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => handleEdit(bus)}
-                          disabled={isDeleting === bus.id}
-                        >
+                        <Button variant="outline" size="sm" onClick={() => handleEdit(bus)}>
                           <Edit className="h-4 w-4" />
                         </Button>
                         <AlertDialog>
@@ -432,18 +373,13 @@ export function BusesManager({ buses, setBuses, onDataChange }: BusesManagerProp
                             <AlertDialogHeader>
                               <AlertDialogTitle>¿Eliminar bus?</AlertDialogTitle>
                               <AlertDialogDescription>
-                                Esta acción no se puede deshacer. Se eliminará permanentemente el bus {bus.patente} de
-                                la base de datos.
+                                Esta acción no se puede deshacer. Se eliminará permanentemente el bus {bus.patente} del
+                                sistema.
                               </AlertDialogDescription>
                             </AlertDialogHeader>
                             <AlertDialogFooter>
                               <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                              <AlertDialogAction
-                                onClick={() => handleDelete(bus.id)}
-                                className="bg-red-600 hover:bg-red-700"
-                              >
-                                Eliminar
-                              </AlertDialogAction>
+                              <AlertDialogAction onClick={() => handleDelete(bus.id)}>Eliminar</AlertDialogAction>
                             </AlertDialogFooter>
                           </AlertDialogContent>
                         </AlertDialog>
@@ -461,30 +397,6 @@ export function BusesManager({ buses, setBuses, onDataChange }: BusesManagerProp
           </div>
         </CardContent>
       </Card>
-
-      {/* Dialog para ver imagen completa */}
-      <Dialog open={isImageDialogOpen} onOpenChange={setIsImageDialogOpen}>
-        <DialogContent className="sm:max-w-[800px]">
-          <DialogHeader>
-            <DialogTitle>Distribución de Butacas</DialogTitle>
-            <DialogDescription>Vista completa de la distribución de asientos</DialogDescription>
-          </DialogHeader>
-          <div className="flex justify-center py-4">
-            {selectedImage && (
-              <Image
-                src={selectedImage || "/placeholder.svg"}
-                alt="Distribución de butacas"
-                width={600}
-                height={400}
-                className="rounded-lg border object-contain max-w-full max-h-[60vh]"
-              />
-            )}
-          </div>
-          <DialogFooter>
-            <Button onClick={() => setIsImageDialogOpen(false)}>Cerrar</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </div>
   )
 }
