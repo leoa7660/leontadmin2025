@@ -3,18 +3,21 @@
 import type React from "react"
 import { useState } from "react"
 import { Button } from "@/components/ui/button"
-import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import {
   Dialog,
   DialogContent,
   DialogDescription,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Textarea } from "@/components/ui/textarea"
 import { Badge } from "@/components/ui/badge"
 import type { Bus, Client, Trip, TripPassenger, Payment } from "../page"
 import {
@@ -24,6 +27,7 @@ import {
   DollarSign,
   UserPlus,
   Receipt,
+  Printer,
   Eye,
   Edit,
   ArrowRightLeft,
@@ -37,23 +41,31 @@ import {
   Plane,
   Anchor,
   PlaneTakeoff,
-  Loader2,
 } from "lucide-react"
 import { Progress } from "@/components/ui/progress"
 import Image from "next/image"
-import { useToast } from "@/hooks/use-toast"
-import { createTrip, updateTrip, createTripPassenger, updateTripPassenger, createPayment } from "../actions/database"
 
 interface TripsManagerProps {
   trips: Trip[]
+  setTrips: (trips: Trip[]) => void
   buses: Bus[]
   clients: Client[]
   tripPassengers: TripPassenger[]
+  setTripPassengers: (passengers: TripPassenger[]) => void
   payments: Payment[]
-  onDataChange: () => Promise<void>
+  setPayments: (payments: Payment[]) => void
 }
 
-export function TripsManager({ trips, buses, clients, tripPassengers, payments, onDataChange }: TripsManagerProps) {
+export function TripsManager({
+  trips,
+  setTrips,
+  buses,
+  clients,
+  tripPassengers,
+  setTripPassengers,
+  payments,
+  setPayments,
+}: TripsManagerProps) {
   const [isDialogOpen, setIsDialogOpen] = useState(false)
   const [isPassengerDialogOpen, setIsPassengerDialogOpen] = useState(false)
   const [isPaymentDialogOpen, setIsPaymentDialogOpen] = useState(false)
@@ -65,10 +77,6 @@ export function TripsManager({ trips, buses, clients, tripPassengers, payments, 
   const [editingTrip, setEditingTrip] = useState<Trip | null>(null)
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
   const [activeTab, setActiveTab] = useState("grupal")
-  const [isLoading, setIsLoading] = useState(false)
-  const [isDeleting, setIsDeleting] = useState<string | null>(null)
-  const { toast } = useToast()
-
   const [formData, setFormData] = useState({
     type: "grupal",
     busId: "",
@@ -101,51 +109,34 @@ export function TripsManager({ trips, buses, clients, tripPassengers, payments, 
   const aereoTrips = trips.filter((trip) => trip.type === "aereo" && !trip.archived)
   const archivedTrips = trips.filter((trip) => trip.archived)
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
-    setIsLoading(true)
 
-    try {
-      const tripData = {
-        busId: formData.type === "grupal" ? formData.busId : undefined,
-        destino: formData.destino,
-        fechaSalida: new Date(formData.fechaSalida),
-        fechaRegreso: new Date(formData.fechaRegreso),
-        importe: Number.parseFloat(formData.importe),
-        currency: formData.currency as "ARS" | "USD",
-        type: formData.type as "grupal" | "individual" | "crucero" | "aereo",
-        descripcion: formData.descripcion,
-        archived: false,
-        // Campos específicos para cruceros
-        naviera: formData.type === "crucero" ? formData.naviera : undefined,
-        barco: formData.type === "crucero" ? formData.barco : undefined,
-        cabina: formData.type === "crucero" ? formData.cabina : undefined,
-        // Campos específicos para aéreos
-        aerolinea: formData.type === "aereo" ? formData.aerolinea : undefined,
-        numeroVuelo: formData.type === "aereo" ? formData.numeroVuelo : undefined,
-        clase: formData.type === "aereo" ? formData.clase : undefined,
-        escalas: formData.type === "aereo" ? formData.escalas : undefined,
-      }
-
-      await createTrip(tripData)
-      await onDataChange()
-
-      toast({
-        title: "Viaje creado",
-        description: `El viaje a ${formData.destino} ha sido creado exitosamente.`,
-      })
-
-      resetForm()
-    } catch (error) {
-      console.error("Error creating trip:", error)
-      toast({
-        title: "Error",
-        description: error instanceof Error ? error.message : "Error al crear el viaje. Por favor, intenta de nuevo.",
-        variant: "destructive",
-      })
-    } finally {
-      setIsLoading(false)
+    const newTrip: Trip = {
+      id: Date.now().toString(),
+      busId: formData.type === "grupal" ? formData.busId : undefined,
+      destino: formData.destino,
+      fechaSalida: new Date(formData.fechaSalida),
+      fechaRegreso: new Date(formData.fechaRegreso),
+      importe: Number.parseFloat(formData.importe),
+      currency: formData.currency as "ARS" | "USD",
+      type: formData.type as "grupal" | "individual" | "crucero" | "aereo",
+      descripcion: formData.descripcion,
+      createdAt: new Date(),
+      archived: false,
+      // Campos específicos para cruceros
+      naviera: formData.type === "crucero" ? formData.naviera : undefined,
+      barco: formData.type === "crucero" ? formData.barco : undefined,
+      cabina: formData.type === "crucero" ? formData.cabina : undefined,
+      // Campos específicos para aéreos
+      aerolinea: formData.type === "aereo" ? formData.aerolinea : undefined,
+      numeroVuelo: formData.type === "aereo" ? formData.numeroVuelo : undefined,
+      clase: formData.type === "aereo" ? formData.clase : undefined,
+      escalas: formData.type === "aereo" ? formData.escalas : undefined,
     }
+
+    setTrips([...trips, newTrip])
+    resetForm()
   }
 
   const resetForm = () => {
@@ -169,51 +160,31 @@ export function TripsManager({ trips, buses, clients, tripPassengers, payments, 
     setIsDialogOpen(false)
   }
 
-  const handleEditSubmit = async (e: React.FormEvent) => {
+  const handleEditSubmit = (e: React.FormEvent) => {
     e.preventDefault()
     if (!editingTrip) return
 
-    setIsLoading(true)
-
-    try {
-      const tripData = {
-        busId: formData.type === "grupal" ? formData.busId : undefined,
-        destino: formData.destino,
-        fechaSalida: new Date(formData.fechaSalida),
-        fechaRegreso: new Date(formData.fechaRegreso),
-        importe: Number.parseFloat(formData.importe),
-        currency: formData.currency as "ARS" | "USD",
-        type: formData.type as "grupal" | "individual" | "crucero" | "aereo",
-        descripcion: formData.descripcion,
-        naviera: formData.type === "crucero" ? formData.naviera : undefined,
-        barco: formData.type === "crucero" ? formData.barco : undefined,
-        cabina: formData.type === "crucero" ? formData.cabina : undefined,
-        aerolinea: formData.type === "aereo" ? formData.aerolinea : undefined,
-        numeroVuelo: formData.type === "aereo" ? formData.numeroVuelo : undefined,
-        clase: formData.type === "aereo" ? formData.clase : undefined,
-        escalas: formData.type === "aereo" ? formData.escalas : undefined,
-      }
-
-      await updateTrip(editingTrip.id, tripData)
-      await onDataChange()
-
-      toast({
-        title: "Viaje actualizado",
-        description: `El viaje a ${formData.destino} ha sido actualizado exitosamente.`,
-      })
-
-      resetEditForm()
-    } catch (error) {
-      console.error("Error updating trip:", error)
-      toast({
-        title: "Error",
-        description:
-          error instanceof Error ? error.message : "Error al actualizar el viaje. Por favor, intenta de nuevo.",
-        variant: "destructive",
-      })
-    } finally {
-      setIsLoading(false)
+    const updatedTrip: Trip = {
+      ...editingTrip,
+      busId: formData.type === "grupal" ? formData.busId : undefined,
+      destino: formData.destino,
+      fechaSalida: new Date(formData.fechaSalida),
+      fechaRegreso: new Date(formData.fechaRegreso),
+      importe: Number.parseFloat(formData.importe),
+      currency: formData.currency as "ARS" | "USD",
+      type: formData.type as "grupal" | "individual" | "crucero" | "aereo",
+      descripcion: formData.descripcion,
+      naviera: formData.type === "crucero" ? formData.naviera : undefined,
+      barco: formData.type === "crucero" ? formData.barco : undefined,
+      cabina: formData.type === "crucero" ? formData.cabina : undefined,
+      aerolinea: formData.type === "aereo" ? formData.aerolinea : undefined,
+      numeroVuelo: formData.type === "aereo" ? formData.numeroVuelo : undefined,
+      clase: formData.type === "aereo" ? formData.clase : undefined,
+      escalas: formData.type === "aereo" ? formData.escalas : undefined,
     }
+
+    setTrips(trips.map((trip) => (trip.id === editingTrip.id ? updatedTrip : trip)))
+    resetEditForm()
   }
 
   const resetEditForm = () => {
@@ -260,175 +231,90 @@ export function TripsManager({ trips, buses, clients, tripPassengers, payments, 
     setIsEditDialogOpen(true)
   }
 
-  const handleArchiveTrip = async (tripId: string) => {
-    setIsDeleting(tripId)
-
-    try {
-      await updateTrip(tripId, { archived: true })
-      await onDataChange()
-
-      toast({
-        title: "Viaje archivado",
-        description: "El viaje ha sido archivado exitosamente.",
-      })
-    } catch (error) {
-      console.error("Error archiving trip:", error)
-      toast({
-        title: "Error",
-        description: error instanceof Error ? error.message : "Error al archivar el viaje.",
-        variant: "destructive",
-      })
-    } finally {
-      setIsDeleting(null)
-    }
+  const handleArchiveTrip = (tripId: string) => {
+    setTrips(trips.map((trip) => (trip.id === tripId ? { ...trip, archived: true } : trip)))
   }
 
-  const handleUnarchiveTrip = async (tripId: string) => {
-    setIsDeleting(tripId)
-
-    try {
-      await updateTrip(tripId, { archived: false })
-      await onDataChange()
-
-      toast({
-        title: "Viaje desarchivado",
-        description: "El viaje ha sido desarchivado exitosamente.",
-      })
-    } catch (error) {
-      console.error("Error unarchiving trip:", error)
-      toast({
-        title: "Error",
-        description: error instanceof Error ? error.message : "Error al desarchivar el viaje.",
-        variant: "destructive",
-      })
-    } finally {
-      setIsDeleting(null)
-    }
+  const handleUnarchiveTrip = (tripId: string) => {
+    setTrips(trips.map((trip) => (trip.id === tripId ? { ...trip, archived: false } : trip)))
   }
 
-  const handleAddPassenger = async (e: React.FormEvent) => {
+  const handleAddPassenger = (e: React.FormEvent) => {
     e.preventDefault()
     if (!selectedTrip) return
 
-    setIsLoading(true)
+    let seatNumber = 1
+    let cabinNumber = ""
 
-    try {
-      let seatNumber = 1
-      let cabinNumber = ""
-
-      if (selectedTrip.type === "grupal") {
-        seatNumber = Number.parseInt(selectedSeat)
-      } else if (selectedTrip.type === "aereo") {
-        seatNumber = Number.parseInt(selectedSeat)
-      } else if (selectedTrip.type === "crucero") {
-        cabinNumber = selectedCabin
-      }
-
-      const passengerData = {
-        tripId: selectedTrip.id,
-        clientId: passengerClientId,
-        pagado: false,
-        numeroAsiento: seatNumber,
-        numeroCabina: selectedTrip.type === "crucero" ? cabinNumber : undefined,
-      }
-
-      await createTripPassenger(passengerData)
-      await onDataChange()
-
-      toast({
-        title: "Pasajero agregado",
-        description: "El pasajero ha sido agregado al viaje exitosamente.",
-      })
-
-      setPassengerClientId("")
-      setSelectedSeat("")
-      setSelectedCabin("")
-      setIsPassengerDialogOpen(false)
-    } catch (error) {
-      console.error("Error adding passenger:", error)
-      toast({
-        title: "Error",
-        description: error instanceof Error ? error.message : "Error al agregar el pasajero.",
-        variant: "destructive",
-      })
-    } finally {
-      setIsLoading(false)
+    if (selectedTrip.type === "grupal") {
+      seatNumber = Number.parseInt(selectedSeat)
+    } else if (selectedTrip.type === "aereo") {
+      seatNumber = Number.parseInt(selectedSeat)
+    } else if (selectedTrip.type === "crucero") {
+      cabinNumber = selectedCabin
     }
+
+    const newPassenger: TripPassenger = {
+      id: Date.now().toString(),
+      tripId: selectedTrip.id,
+      clientId: passengerClientId,
+      fechaReserva: new Date(),
+      pagado: false,
+      numeroAsiento: seatNumber,
+      numeroCabina: selectedTrip.type === "crucero" ? cabinNumber : undefined,
+    }
+
+    setTripPassengers([...tripPassengers, newPassenger])
+    setPassengerClientId("")
+    setSelectedSeat("")
+    setSelectedCabin("")
+    setIsPassengerDialogOpen(false)
   }
 
-  const handleChangeSeat = async (e: React.FormEvent) => {
+  const handleChangeSeat = (e: React.FormEvent) => {
     e.preventDefault()
     if (!selectedPassenger || !selectedTrip || !newSeatNumber) return
 
-    setIsLoading(true)
+    const updatedPassengers = tripPassengers.map((passenger) => {
+      if (passenger.id === selectedPassenger.id) {
+        return {
+          ...passenger,
+          numeroAsiento: Number.parseInt(newSeatNumber),
+        }
+      }
+      return passenger
+    })
 
-    try {
-      await updateTripPassenger(selectedPassenger.id, {
-        numeroAsiento: Number.parseInt(newSeatNumber),
-      })
-      await onDataChange()
-
-      toast({
-        title: "Asiento cambiado",
-        description: "El asiento ha sido cambiado exitosamente.",
-      })
-
-      setNewSeatNumber("")
-      setIsSeatChangeDialogOpen(false)
-    } catch (error) {
-      console.error("Error changing seat:", error)
-      toast({
-        title: "Error",
-        description: error instanceof Error ? error.message : "Error al cambiar el asiento.",
-        variant: "destructive",
-      })
-    } finally {
-      setIsLoading(false)
-    }
+    setTripPassengers(updatedPassengers)
+    setNewSeatNumber("")
+    setIsSeatChangeDialogOpen(false)
   }
 
-  const handlePayment = async (e: React.FormEvent) => {
+  const handlePayment = (e: React.FormEvent) => {
     e.preventDefault()
     if (!selectedPassenger || !selectedTrip) return
 
-    setIsLoading(true)
-
-    try {
-      const payment = {
-        clientId: selectedPassenger.clientId,
-        tripId: selectedTrip.id,
-        amount: Number.parseFloat(paymentAmount),
-        currency: selectedTrip.currency,
-        type: "payment" as const,
-        description: `Pago por ${getTripTypeLabel(selectedTrip.type)} a ${selectedTrip.destino}${getPassengerLocationInfo(selectedPassenger, selectedTrip)}`,
-        receiptNumber: `REC-${Date.now()}`,
-      }
-
-      await createPayment(payment)
-
-      if (Number.parseFloat(paymentAmount) >= selectedTrip.importe) {
-        await updateTripPassenger(selectedPassenger.id, { pagado: true })
-      }
-
-      await onDataChange()
-
-      toast({
-        title: "Pago registrado",
-        description: "El pago ha sido registrado exitosamente.",
-      })
-
-      setPaymentAmount("")
-      setIsPaymentDialogOpen(false)
-    } catch (error) {
-      console.error("Error processing payment:", error)
-      toast({
-        title: "Error",
-        description: error instanceof Error ? error.message : "Error al procesar el pago.",
-        variant: "destructive",
-      })
-    } finally {
-      setIsLoading(false)
+    const payment: Payment = {
+      id: Date.now().toString(),
+      clientId: selectedPassenger.clientId,
+      tripId: selectedTrip.id,
+      amount: Number.parseFloat(paymentAmount),
+      currency: selectedTrip.currency,
+      type: "payment",
+      description: `Pago por ${getTripTypeLabel(selectedTrip.type)} a ${selectedTrip.destino}${getPassengerLocationInfo(selectedPassenger, selectedTrip)}`,
+      date: new Date(),
+      receiptNumber: `REC-${Date.now()}`,
     }
+
+    setPayments([...payments, payment])
+
+    if (Number.parseFloat(paymentAmount) >= selectedTrip.importe) {
+      setTripPassengers(tripPassengers.map((p) => (p.id === selectedPassenger.id ? { ...p, pagado: true } : p)))
+    }
+
+    setSelectedPayment(payment)
+    setPaymentAmount("")
+    setIsPaymentDialogOpen(false)
   }
 
   // Función para obtener etiqueta del tipo de viaje
@@ -939,7 +825,7 @@ export function TripsManager({ trips, buses, clients, tripPassengers, payments, 
             <Button
               variant="outline"
               size="sm"
-              className="absolute top-2 right-2 bg-transparent"
+              className="absolute top-2 right-2"
               onClick={() => {
                 setSelectedTrip(trip)
                 setIsImageDialogOpen(true)
@@ -1044,7 +930,7 @@ export function TripsManager({ trips, buses, clients, tripPassengers, payments, 
                       <Button
                         variant="outline"
                         size="sm"
-                        className="h-6 px-2 text-xs bg-transparent"
+                        className="h-6 px-2 text-xs"
                         onClick={() => {
                           setSelectedTrip(trip)
                           setIsPassengerDialogOpen(true)
@@ -1058,7 +944,7 @@ export function TripsManager({ trips, buses, clients, tripPassengers, payments, 
                       <Button
                         variant="outline"
                         size="sm"
-                        className="h-6 px-2 text-xs bg-transparent"
+                        className="h-6 px-2 text-xs"
                         onClick={() => handleEditTrip(trip)}
                       >
                         <Edit className="h-3 w-3 mr-1" />
@@ -1068,7 +954,7 @@ export function TripsManager({ trips, buses, clients, tripPassengers, payments, 
 
                     <Dialog>
                       <DialogTrigger asChild>
-                        <Button variant="outline" size="sm" className="h-6 px-2 text-xs bg-transparent">
+                        <Button variant="outline" size="sm" className="h-6 px-2 text-xs">
                           <Eye className="h-3 w-3 mr-1" />
                           Ver
                         </Button>
@@ -1166,7 +1052,7 @@ export function TripsManager({ trips, buses, clients, tripPassengers, payments, 
                                           <Button
                                             variant="outline"
                                             size="sm"
-                                            className="h-6 px-2 text-xs bg-transparent"
+                                            className="h-6 px-2 text-xs"
                                             onClick={() => openSeatChangeDialog(passenger, trip)}
                                           >
                                             <ArrowRightLeft className="h-3 w-3 mr-1" />
@@ -1176,7 +1062,7 @@ export function TripsManager({ trips, buses, clients, tripPassengers, payments, 
                                         <Button
                                           variant="outline"
                                           size="sm"
-                                          className="h-6 px-2 text-xs bg-transparent"
+                                          className="h-6 px-2 text-xs"
                                           onClick={() => printVoucher(passenger, trip)}
                                         >
                                           <Ticket className="h-3 w-3 mr-1" />
@@ -1195,7 +1081,7 @@ export function TripsManager({ trips, buses, clients, tripPassengers, payments, 
                                               <Button
                                                 variant="outline"
                                                 size="sm"
-                                                className="h-6 px-2 text-xs bg-transparent"
+                                                className="h-6 px-2 text-xs"
                                                 onClick={() => {
                                                   setSelectedTrip(trip)
                                                   setSelectedPassenger(passenger)
@@ -1240,11 +1126,8 @@ export function TripsManager({ trips, buses, clients, tripPassengers, payments, 
                               onClick={() =>
                                 trip.archived ? handleUnarchiveTrip(trip.id) : handleArchiveTrip(trip.id)
                               }
-                              disabled={isDeleting === trip.id}
                             >
-                              {isDeleting === trip.id ? (
-                                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                              ) : trip.archived ? (
+                              {trip.archived ? (
                                 <>
                                   <ArchiveRestore className="h-4 w-4 mr-2" />
                                   Desarchivar
@@ -1264,17 +1147,10 @@ export function TripsManager({ trips, buses, clients, tripPassengers, payments, 
                     <Button
                       variant="outline"
                       size="sm"
-                      className="h-6 px-2 text-xs bg-transparent"
+                      className="h-6 px-2 text-xs"
                       onClick={() => (trip.archived ? handleUnarchiveTrip(trip.id) : handleArchiveTrip(trip.id))}
-                      disabled={isDeleting === trip.id}
                     >
-                      {isDeleting === trip.id ? (
-                        <Loader2 className="h-3 w-3 animate-spin" />
-                      ) : trip.archived ? (
-                        <ArchiveRestore className="h-3 w-3" />
-                      ) : (
-                        <Archive className="h-3 w-3" />
-                      )}
+                      {trip.archived ? <ArchiveRestore className="h-3 w-3" /> : <Archive className="h-3 w-3" />}
                     </Button>
                   </div>
                 </div>
@@ -1322,7 +1198,6 @@ export function TripsManager({ trips, buses, clients, tripPassengers, payments, 
                         value={formData.type}
                         onValueChange={(value) => setFormData({ ...formData, type: value, busId: "" })}
                         required
-                        disabled={isLoading}
                       >
                         <SelectTrigger>
                           <SelectValue placeholder="Seleccionar tipo" />
@@ -1378,7 +1253,6 @@ export function TripsManager({ trips, buses, clients, tripPassengers, payments, 
                           value={formData.busId}
                           onValueChange={(value) => setFormData({ ...formData, busId: value })}
                           required
-                          disabled={isLoading}
                         >
                           <SelectTrigger>
                             <SelectValue placeholder="Seleccionar bus" />
@@ -1410,7 +1284,6 @@ export function TripsManager({ trips, buses, clients, tripPassengers, payments, 
                               onChange={(e) => setFormData({ ...formData, naviera: e.target.value })}
                               placeholder="Ej: MSC, Royal Caribbean"
                               required
-                              disabled={isLoading}
                             />
                           </div>
                           <div className="grid gap-2">
@@ -1421,7 +1294,6 @@ export function TripsManager({ trips, buses, clients, tripPassengers, payments, 
                               onChange={(e) => setFormData({ ...formData, barco: e.target.value })}
                               placeholder="Ej: MSC Seaside"
                               required
-                              disabled={isLoading}
                             />
                           </div>
                         </div>
@@ -1431,7 +1303,6 @@ export function TripsManager({ trips, buses, clients, tripPassengers, payments, 
                             value={formData.cabina}
                             onValueChange={(value) => setFormData({ ...formData, cabina: value })}
                             required
-                            disabled={isLoading}
                           >
                             <SelectTrigger>
                               <SelectValue placeholder="Seleccionar tipo de cabina" />
@@ -1463,7 +1334,6 @@ export function TripsManager({ trips, buses, clients, tripPassengers, payments, 
                               onChange={(e) => setFormData({ ...formData, aerolinea: e.target.value })}
                               placeholder="Ej: Aerolíneas Argentinas"
                               required
-                              disabled={isLoading}
                             />
                           </div>
                           <div className="grid gap-2">
@@ -1474,7 +1344,6 @@ export function TripsManager({ trips, buses, clients, tripPassengers, payments, 
                               onChange={(e) => setFormData({ ...formData, numeroVuelo: e.target.value })}
                               placeholder="Ej: AR1234"
                               required
-                              disabled={isLoading}
                             />
                           </div>
                         </div>
@@ -1485,7 +1354,6 @@ export function TripsManager({ trips, buses, clients, tripPassengers, payments, 
                               value={formData.clase}
                               onValueChange={(value) => setFormData({ ...formData, clase: value })}
                               required
-                              disabled={isLoading}
                             >
                               <SelectTrigger>
                                 <SelectValue placeholder="Seleccionar clase" />
@@ -1505,7 +1373,6 @@ export function TripsManager({ trips, buses, clients, tripPassengers, payments, 
                               value={formData.escalas}
                               onChange={(e) => setFormData({ ...formData, escalas: e.target.value })}
                               placeholder="Ej: 1 escala en Lima"
-                              disabled={isLoading}
                             />
                           </div>
                         </div>
@@ -1519,7 +1386,6 @@ export function TripsManager({ trips, buses, clients, tripPassengers, payments, 
                         value={formData.destino}
                         onChange={(e) => setFormData({ ...formData, destino: e.target.value })}
                         required
-                        disabled={isLoading}
                       />
                     </div>
                     <div className="grid grid-cols-2 gap-4">
@@ -1531,7 +1397,6 @@ export function TripsManager({ trips, buses, clients, tripPassengers, payments, 
                           value={formData.fechaSalida}
                           onChange={(e) => setFormData({ ...formData, fechaSalida: e.target.value })}
                           required
-                          disabled={isLoading}
                         />
                       </div>
                       <div className="grid gap-2">
@@ -1542,7 +1407,6 @@ export function TripsManager({ trips, buses, clients, tripPassengers, payments, 
                           value={formData.fechaRegreso}
                           onChange={(e) => setFormData({ ...formData, fechaRegreso: e.target.value })}
                           required
-                          disabled={isLoading}
                         />
                       </div>
                     </div>
@@ -1556,7 +1420,6 @@ export function TripsManager({ trips, buses, clients, tripPassengers, payments, 
                           value={formData.importe}
                           onChange={(e) => setFormData({ ...formData, importe: e.target.value })}
                           required
-                          disabled={isLoading}
                         />
                       </div>
                       <div className="grid gap-2">
@@ -1565,7 +1428,6 @@ export function TripsManager({ trips, buses, clients, tripPassengers, payments, 
                           value={formData.currency}
                           onValueChange={(value) => setFormData({ ...formData, currency: value })}
                           required
-                          disabled={isLoading}
                         >
                           <SelectTrigger>
                             <SelectValue placeholder="Seleccionar moneda" />
@@ -1579,66 +1441,78 @@ export function TripsManager({ trips, buses, clients, tripPassengers, payments, 
                     </div>
                     <div className="grid gap-2">
                       <Label htmlFor="descripcion">Descripción (Qué incluye)</Label>
-                      <textarea
+                      <Textarea
                         id="descripcion"
                         value={formData.descripcion}
                         onChange={(e) => setFormData({ ...formData, descripcion: e.target.value })}
                         placeholder="Ej: Transporte, alojamiento, desayuno, excursiones..."
                         rows={3}
-                        className="flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                        disabled={isLoading}
                       />
                     </div>
                   </div>
-                  <div className="flex justify-end gap-2 pt-4">
-                    <Button type="button" variant="outline" onClick={resetForm} disabled={isLoading}>
+                  <DialogFooter>
+                    <Button type="button" variant="outline" onClick={resetForm}>
                       Cancelar
                     </Button>
-                    <Button type="submit" disabled={isLoading}>
-                      {isLoading && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-                      Crear Viaje
-                    </Button>
-                  </div>
+                    <Button type="submit">Crear Viaje</Button>
+                  </DialogFooter>
                 </form>
               </DialogContent>
             </Dialog>
           </div>
         </CardHeader>
-        <div className="px-6 pb-6">
-          <div className="flex space-x-1 mb-6">
-            {[
-              { id: "grupal", label: "Grupales", icon: Users, trips: grupalTrips },
-              { id: "individual", label: "Individuales", icon: Car, trips: individualTrips },
-              { id: "crucero", label: "Cruceros", icon: Ship, trips: cruceroTrips },
-              { id: "aereo", label: "Aéreos", icon: Plane, trips: aereoTrips },
-              { id: "archived", label: "Archivados", icon: Archive, trips: archivedTrips },
-            ].map((tab) => (
-              <Button
-                key={tab.id}
-                variant={activeTab === tab.id ? "default" : "outline"}
-                size="sm"
-                onClick={() => setActiveTab(tab.id)}
-                className="flex items-center gap-2"
-              >
-                <tab.icon className="h-4 w-4" />
-                {tab.label} ({tab.trips.length})
-              </Button>
-            ))}
-          </div>
+        <CardContent>
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+            <TabsList className="grid w-full grid-cols-5">
+              <TabsTrigger value="grupal" className="flex items-center gap-2">
+                <Users className="h-4 w-4" />
+                Grupales ({grupalTrips.length})
+              </TabsTrigger>
+              <TabsTrigger value="individual" className="flex items-center gap-2">
+                <Car className="h-4 w-4" />
+                Individuales ({individualTrips.length})
+              </TabsTrigger>
+              <TabsTrigger value="crucero" className="flex items-center gap-2">
+                <Ship className="h-4 w-4" />
+                Cruceros ({cruceroTrips.length})
+              </TabsTrigger>
+              <TabsTrigger value="aereo" className="flex items-center gap-2">
+                <Plane className="h-4 w-4" />
+                Aéreos ({aereoTrips.length})
+              </TabsTrigger>
+              <TabsTrigger value="archived" className="flex items-center gap-2">
+                <Archive className="h-4 w-4" />
+                Archivados ({archivedTrips.length})
+              </TabsTrigger>
+            </TabsList>
 
-          {activeTab === "grupal" &&
-            renderTripGrid(grupalTrips, "No hay viajes grupales activos. Crea tu primer viaje grupal para comenzar.")}
-          {activeTab === "individual" &&
-            renderTripGrid(
-              individualTrips,
-              "No hay viajes individuales activos. Crea tu primer viaje individual para comenzar.",
-            )}
-          {activeTab === "crucero" &&
-            renderTripGrid(cruceroTrips, "No hay cruceros activos. Crea tu primer crucero para comenzar.")}
-          {activeTab === "aereo" &&
-            renderTripGrid(aereoTrips, "No hay vuelos activos. Crea tu primer vuelo para comenzar.")}
-          {activeTab === "archived" && renderTripGrid(archivedTrips, "No hay viajes archivados.")}
-        </div>
+            <TabsContent value="grupal" className="mt-6">
+              {renderTripGrid(
+                grupalTrips,
+                "No hay viajes grupales activos. Crea tu primer viaje grupal para comenzar.",
+              )}
+            </TabsContent>
+
+            <TabsContent value="individual" className="mt-6">
+              {renderTripGrid(
+                individualTrips,
+                "No hay viajes individuales activos. Crea tu primer viaje individual para comenzar.",
+              )}
+            </TabsContent>
+
+            <TabsContent value="crucero" className="mt-6">
+              {renderTripGrid(cruceroTrips, "No hay cruceros activos. Crea tu primer crucero para comenzar.")}
+            </TabsContent>
+
+            <TabsContent value="aereo" className="mt-6">
+              {renderTripGrid(aereoTrips, "No hay vuelos activos. Crea tu primer vuelo para comenzar.")}
+            </TabsContent>
+
+            <TabsContent value="archived" className="mt-6">
+              {renderTripGrid(archivedTrips, "No hay viajes archivados.")}
+            </TabsContent>
+          </Tabs>
+        </CardContent>
       </Card>
 
       {/* Dialog para editar viaje */}
@@ -1650,14 +1524,13 @@ export function TripsManager({ trips, buses, clients, tripPassengers, payments, 
           </DialogHeader>
           <form onSubmit={handleEditSubmit}>
             <div className="grid gap-4 py-4">
-              {/* Mismos campos que en crear, pero para editar */}
+              {/* TIPO DE VIAJE - PRIMERO EN EDICIÓN TAMBIÉN */}
               <div className="grid gap-2">
                 <Label htmlFor="edit-type">Tipo de Viaje</Label>
                 <Select
                   value={formData.type}
                   onValueChange={(value) => setFormData({ ...formData, type: value, busId: "" })}
                   required
-                  disabled={isLoading}
                 >
                   <SelectTrigger>
                     <SelectValue placeholder="Seleccionar tipo" />
@@ -1703,7 +1576,7 @@ export function TripsManager({ trips, buses, clients, tripPassengers, payments, 
                 </Select>
               </div>
 
-              {/* Resto de campos similares al formulario de crear */}
+              {/* BUS - SOLO SI ES GRUPAL */}
               {formData.type === "grupal" && (
                 <div className="grid gap-2">
                   <Label htmlFor="edit-bus">Bus</Label>
@@ -1711,7 +1584,6 @@ export function TripsManager({ trips, buses, clients, tripPassengers, payments, 
                     value={formData.busId}
                     onValueChange={(value) => setFormData({ ...formData, busId: value })}
                     required
-                    disabled={isLoading}
                   >
                     <SelectTrigger>
                       <SelectValue placeholder="Seleccionar bus" />
@@ -1727,6 +1599,112 @@ export function TripsManager({ trips, buses, clients, tripPassengers, payments, 
                 </div>
               )}
 
+              {/* CAMPOS ESPECÍFICOS PARA CRUCEROS EN EDICIÓN */}
+              {formData.type === "crucero" && (
+                <div className="border rounded-lg p-4 space-y-4">
+                  <h4 className="font-medium text-blue-600 flex items-center gap-2">
+                    <Anchor className="h-4 w-4" />
+                    Información del Crucero
+                  </h4>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="grid gap-2">
+                      <Label htmlFor="edit-naviera">Naviera</Label>
+                      <Input
+                        id="edit-naviera"
+                        value={formData.naviera}
+                        onChange={(e) => setFormData({ ...formData, naviera: e.target.value })}
+                        required
+                      />
+                    </div>
+                    <div className="grid gap-2">
+                      <Label htmlFor="edit-barco">Nombre del Barco</Label>
+                      <Input
+                        id="edit-barco"
+                        value={formData.barco}
+                        onChange={(e) => setFormData({ ...formData, barco: e.target.value })}
+                        required
+                      />
+                    </div>
+                  </div>
+                  <div className="grid gap-2">
+                    <Label htmlFor="edit-cabina">Tipo de Cabina</Label>
+                    <Select
+                      value={formData.cabina}
+                      onValueChange={(value) => setFormData({ ...formData, cabina: value })}
+                      required
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Seleccionar tipo de cabina" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="interior">Interior</SelectItem>
+                        <SelectItem value="exterior">Exterior</SelectItem>
+                        <SelectItem value="balcon">Balcón</SelectItem>
+                        <SelectItem value="suite">Suite</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+              )}
+
+              {/* CAMPOS ESPECÍFICOS PARA AÉREOS EN EDICIÓN */}
+              {formData.type === "aereo" && (
+                <div className="border rounded-lg p-4 space-y-4">
+                  <h4 className="font-medium text-sky-600 flex items-center gap-2">
+                    <PlaneTakeoff className="h-4 w-4" />
+                    Información del Vuelo
+                  </h4>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="grid gap-2">
+                      <Label htmlFor="edit-aerolinea">Aerolínea</Label>
+                      <Input
+                        id="edit-aerolinea"
+                        value={formData.aerolinea}
+                        onChange={(e) => setFormData({ ...formData, aerolinea: e.target.value })}
+                        required
+                      />
+                    </div>
+                    <div className="grid gap-2">
+                      <Label htmlFor="edit-numeroVuelo">Número de Vuelo</Label>
+                      <Input
+                        id="edit-numeroVuelo"
+                        value={formData.numeroVuelo}
+                        onChange={(e) => setFormData({ ...formData, numeroVuelo: e.target.value })}
+                        required
+                      />
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="grid gap-2">
+                      <Label htmlFor="edit-clase">Clase</Label>
+                      <Select
+                        value={formData.clase}
+                        onValueChange={(value) => setFormData({ ...formData, clase: value })}
+                        required
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Seleccionar clase" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="economica">Económica</SelectItem>
+                          <SelectItem value="premium">Premium Economy</SelectItem>
+                          <SelectItem value="ejecutiva">Ejecutiva</SelectItem>
+                          <SelectItem value="primera">Primera Clase</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="grid gap-2">
+                      <Label htmlFor="edit-escalas">Escalas</Label>
+                      <Input
+                        id="edit-escalas"
+                        value={formData.escalas}
+                        onChange={(e) => setFormData({ ...formData, escalas: e.target.value })}
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
+
               <div className="grid gap-2">
                 <Label htmlFor="edit-destino">Destino</Label>
                 <Input
@@ -1734,10 +1712,8 @@ export function TripsManager({ trips, buses, clients, tripPassengers, payments, 
                   value={formData.destino}
                   onChange={(e) => setFormData({ ...formData, destino: e.target.value })}
                   required
-                  disabled={isLoading}
                 />
               </div>
-
               <div className="grid grid-cols-2 gap-4">
                 <div className="grid gap-2">
                   <Label htmlFor="edit-fechaSalida">Fecha Salida</Label>
@@ -1747,7 +1723,6 @@ export function TripsManager({ trips, buses, clients, tripPassengers, payments, 
                     value={formData.fechaSalida}
                     onChange={(e) => setFormData({ ...formData, fechaSalida: e.target.value })}
                     required
-                    disabled={isLoading}
                   />
                 </div>
                 <div className="grid gap-2">
@@ -1758,11 +1733,9 @@ export function TripsManager({ trips, buses, clients, tripPassengers, payments, 
                     value={formData.fechaRegreso}
                     onChange={(e) => setFormData({ ...formData, fechaRegreso: e.target.value })}
                     required
-                    disabled={isLoading}
                   />
                 </div>
               </div>
-
               <div className="grid grid-cols-2 gap-4">
                 <div className="grid gap-2">
                   <Label htmlFor="edit-importe">Importe por Persona</Label>
@@ -1773,16 +1746,14 @@ export function TripsManager({ trips, buses, clients, tripPassengers, payments, 
                     value={formData.importe}
                     onChange={(e) => setFormData({ ...formData, importe: e.target.value })}
                     required
-                    disabled={isLoading}
                   />
                 </div>
                 <div className="grid gap-2">
-                  <Label htmlFor="edit-currency">Moneda</Label>
+                  <Label htmlFor="currency">Moneda</Label>
                   <Select
                     value={formData.currency}
                     onValueChange={(value) => setFormData({ ...formData, currency: value })}
                     required
-                    disabled={isLoading}
                   >
                     <SelectTrigger>
                       <SelectValue placeholder="Seleccionar moneda" />
@@ -1794,32 +1765,79 @@ export function TripsManager({ trips, buses, clients, tripPassengers, payments, 
                   </Select>
                 </div>
               </div>
-
               <div className="grid gap-2">
                 <Label htmlFor="edit-descripcion">Descripción (Qué incluye)</Label>
-                <textarea
+                <Textarea
                   id="edit-descripcion"
                   value={formData.descripcion}
                   onChange={(e) => setFormData({ ...formData, descripcion: e.target.value })}
                   placeholder="Ej: Transporte, alojamiento, desayuno, excursiones..."
                   rows={3}
-                  className="flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                  disabled={isLoading}
                 />
               </div>
             </div>
-            <div className="flex justify-end gap-2 pt-4">
-              <Button type="button" variant="outline" onClick={resetEditForm} disabled={isLoading}>
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={resetEditForm}>
                 Cancelar
               </Button>
-              <Button type="submit" disabled={isLoading}>
-                {isLoading && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-                Guardar Cambios
-              </Button>
-            </div>
+              <Button type="submit">Guardar Cambios</Button>
+            </DialogFooter>
           </form>
         </DialogContent>
       </Dialog>
+
+      {/* Dialog para cambiar asiento - Solo para viajes grupales y aéreos */}
+      {selectedTrip && (selectedTrip.type === "grupal" || selectedTrip.type === "aereo") && (
+        <Dialog open={isSeatChangeDialogOpen} onOpenChange={setIsSeatChangeDialogOpen}>
+          <DialogContent className="sm:max-w-[600px]">
+            <DialogHeader>
+              <DialogTitle>Cambiar Asiento</DialogTitle>
+              <DialogDescription>
+                {selectedTrip && selectedPassenger && (
+                  <>
+                    Cliente: {clients.find((c) => c.id === selectedPassenger.clientId)?.name || "Cliente"} - Asiento
+                    actual: {selectedPassenger.numeroAsiento}
+                  </>
+                )}
+              </DialogDescription>
+            </DialogHeader>
+            <div className="grid gap-4 py-4">
+              {/* Mostrar información del tipo de viaje */}
+              {selectedTrip && <TripTypeInfo trip={selectedTrip} />}
+
+              <div className="grid gap-2">
+                <Label htmlFor="newSeat">Nuevo Asiento</Label>
+                <Select value={newSeatNumber} onValueChange={setNewSeatNumber} required>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Seleccionar nuevo asiento" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {selectedPassenger &&
+                      getAvailableSeatNumbers(selectedTrip, selectedPassenger.id).map((seatNumber) => (
+                        <SelectItem key={seatNumber} value={seatNumber.toString()}>
+                          Asiento {seatNumber}
+                        </SelectItem>
+                      ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <DialogFooter>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => {
+                  setIsSeatChangeDialogOpen(false)
+                  setNewSeatNumber("")
+                }}
+              >
+                Cancelar
+              </Button>
+              <Button onClick={handleChangeSeat}>Cambiar Asiento</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      )}
 
       {/* Dialog para agregar pasajero */}
       <Dialog open={isPassengerDialogOpen} onOpenChange={setIsPassengerDialogOpen}>
@@ -1856,7 +1874,7 @@ export function TripsManager({ trips, buses, clients, tripPassengers, payments, 
 
             <div className="grid gap-2">
               <Label htmlFor="client">Cliente</Label>
-              <Select value={passengerClientId} onValueChange={setPassengerClientId} required disabled={isLoading}>
+              <Select value={passengerClientId} onValueChange={setPassengerClientId} required>
                 <SelectTrigger>
                   <SelectValue placeholder="Seleccionar cliente" />
                 </SelectTrigger>
@@ -1875,7 +1893,7 @@ export function TripsManager({ trips, buses, clients, tripPassengers, payments, 
             {selectedTrip && (selectedTrip.type === "grupal" || selectedTrip.type === "aereo") && (
               <div className="grid gap-2">
                 <Label htmlFor="seat">Número de Asiento</Label>
-                <Select value={selectedSeat} onValueChange={setSelectedSeat} required disabled={isLoading}>
+                <Select value={selectedSeat} onValueChange={setSelectedSeat} required>
                   <SelectTrigger>
                     <SelectValue placeholder="Seleccionar asiento" />
                   </SelectTrigger>
@@ -1901,13 +1919,12 @@ export function TripsManager({ trips, buses, clients, tripPassengers, payments, 
                   onChange={(e) => setSelectedCabin(e.target.value)}
                   placeholder="Ej: A101, B205, Suite 301"
                   required
-                  disabled={isLoading}
                 />
                 <p className="text-xs text-muted-foreground">Ingresa el número de cabina según el plano del barco</p>
               </div>
             )}
           </div>
-          <div className="flex justify-end gap-2">
+          <DialogFooter>
             <Button
               type="button"
               variant="outline"
@@ -1917,12 +1934,10 @@ export function TripsManager({ trips, buses, clients, tripPassengers, payments, 
                 setSelectedSeat("")
                 setSelectedCabin("")
               }}
-              disabled={isLoading}
             >
               Cancelar
             </Button>
-            <Button onClick={handleAddPassenger} disabled={isLoading}>
-              {isLoading && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+            <Button onClick={handleAddPassenger}>
               {selectedTrip?.type === "individual"
                 ? "Asignar Cliente"
                 : selectedTrip?.type === "crucero"
@@ -1931,118 +1946,7 @@ export function TripsManager({ trips, buses, clients, tripPassengers, payments, 
                     ? "Agregar al Vuelo"
                     : "Agregar Pasajero"}
             </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
-
-      {/* Dialog para cambiar asiento */}
-      {selectedTrip && (selectedTrip.type === "grupal" || selectedTrip.type === "aereo") && (
-        <Dialog open={isSeatChangeDialogOpen} onOpenChange={setIsSeatChangeDialogOpen}>
-          <DialogContent className="sm:max-w-[600px]">
-            <DialogHeader>
-              <DialogTitle>Cambiar Asiento</DialogTitle>
-              <DialogDescription>
-                {selectedTrip && selectedPassenger && (
-                  <>
-                    Cliente: {clients.find((c) => c.id === selectedPassenger.clientId)?.name || "Cliente"} - Asiento
-                    actual: {selectedPassenger.numeroAsiento}
-                  </>
-                )}
-              </DialogDescription>
-            </DialogHeader>
-            <div className="grid gap-4 py-4">
-              {/* Mostrar información del tipo de viaje */}
-              {selectedTrip && <TripTypeInfo trip={selectedTrip} />}
-
-              <div className="grid gap-2">
-                <Label htmlFor="newSeat">Nuevo Asiento</Label>
-                <Select value={newSeatNumber} onValueChange={setNewSeatNumber} required disabled={isLoading}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Seleccionar nuevo asiento" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {selectedPassenger &&
-                      getAvailableSeatNumbers(selectedTrip, selectedPassenger.id).map((seatNumber) => (
-                        <SelectItem key={seatNumber} value={seatNumber.toString()}>
-                          Asiento {seatNumber}
-                        </SelectItem>
-                      ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-            <div className="flex justify-end gap-2">
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => {
-                  setIsSeatChangeDialogOpen(false)
-                  setNewSeatNumber("")
-                }}
-                disabled={isLoading}
-              >
-                Cancelar
-              </Button>
-              <Button onClick={handleChangeSeat} disabled={isLoading}>
-                {isLoading && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-                Cambiar Asiento
-              </Button>
-            </div>
-          </DialogContent>
-        </Dialog>
-      )}
-
-      {/* Dialog para pago */}
-      <Dialog open={isPaymentDialogOpen} onOpenChange={setIsPaymentDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Registrar Pago</DialogTitle>
-            <DialogDescription>
-              {selectedTrip && selectedPassenger && (
-                <>
-                  Cliente: {clients.find((c) => c.id === selectedPassenger.clientId)?.name}
-                  {getPassengerLocationInfo(selectedPassenger, selectedTrip)}
-                  {" - "}Importe: ${selectedTrip.currency === "USD" ? "US$" : "$"}
-                  {selectedTrip.importe.toLocaleString()}
-                </>
-              )}
-            </DialogDescription>
-          </DialogHeader>
-          <form onSubmit={handlePayment}>
-            <div className="grid gap-4 py-4">
-              <div className="grid gap-2">
-                <Label htmlFor="amount">Monto del Pago</Label>
-                <Input
-                  id="amount"
-                  type="number"
-                  step="0.01"
-                  value={paymentAmount}
-                  onChange={(e) => setPaymentAmount(e.target.value)}
-                  max={selectedTrip?.importe}
-                  required
-                  disabled={isLoading}
-                />
-              </div>
-            </div>
-            <div className="flex justify-end gap-2">
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => {
-                  setIsPaymentDialogOpen(false)
-                  setSelectedPassenger(null)
-                  setPaymentAmount("")
-                }}
-                disabled={isLoading}
-              >
-                Cancelar
-              </Button>
-              <Button type="submit" disabled={isLoading}>
-                {isLoading && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-                Registrar Pago
-              </Button>
-            </div>
-          </form>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
 
@@ -2099,9 +2003,93 @@ export function TripsManager({ trips, buses, clients, tripPassengers, payments, 
                 )}
               </div>
             )}
-            <div className="flex justify-end">
+            <DialogFooter>
               <Button onClick={() => setIsImageDialogOpen(false)}>Cerrar</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      )}
+
+      {/* Dialog para pago */}
+      <Dialog open={isPaymentDialogOpen} onOpenChange={setIsPaymentDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Registrar Pago</DialogTitle>
+            <DialogDescription>
+              {selectedTrip && selectedPassenger && (
+                <>
+                  Cliente: {clients.find((c) => c.id === selectedPassenger.clientId)?.name}
+                  {getPassengerLocationInfo(selectedPassenger, selectedTrip)}
+                  {" - "}Importe: ${selectedTrip.currency === "USD" ? "US$" : "$"}
+                  {selectedTrip.importe.toLocaleString()}
+                </>
+              )}
+            </DialogDescription>
+          </DialogHeader>
+          <form onSubmit={handlePayment}>
+            <div className="grid gap-4 py-4">
+              <div className="grid gap-2">
+                <Label htmlFor="amount">Monto del Pago</Label>
+                <Input
+                  id="amount"
+                  type="number"
+                  step="0.01"
+                  value={paymentAmount}
+                  onChange={(e) => setPaymentAmount(e.target.value)}
+                  max={selectedTrip?.importe}
+                  required
+                />
+              </div>
             </div>
+            <DialogFooter>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => {
+                  setIsPaymentDialogOpen(false)
+                  setSelectedPassenger(null)
+                  setPaymentAmount("")
+                }}
+              >
+                Cancelar
+              </Button>
+              <Button type="submit">Registrar Pago</Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Confirmación de pago exitoso con opción de imprimir */}
+      {selectedPayment && (
+        <Dialog open={!!selectedPayment} onOpenChange={() => setSelectedPayment(null)}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>¡Pago Registrado Exitosamente!</DialogTitle>
+              <DialogDescription>
+                El pago ha sido procesado correctamente. Recibo N° {selectedPayment.receiptNumber}
+              </DialogDescription>
+            </DialogHeader>
+            <div className="py-4">
+              <div className="text-center space-y-2">
+                <p className="text-lg font-semibold">Monto: ${selectedPayment.amount.toLocaleString()}</p>
+                <p className="text-sm text-muted-foreground">
+                  Cliente: {clients.find((c) => c.id === selectedPayment.clientId)?.name}
+                </p>
+                <p className="text-sm text-muted-foreground">
+                  {getTripTypeLabel(trips.find((t) => t.id === selectedPayment.tripId)?.type || "")}:{" "}
+                  {trips.find((t) => t.id === selectedPayment.tripId)?.destino}
+                </p>
+              </div>
+            </div>
+            <DialogFooter className="flex gap-2">
+              <Button variant="outline" onClick={() => setSelectedPayment(null)}>
+                Cerrar
+              </Button>
+              <Button onClick={() => printReceipt(selectedPayment)}>
+                <Printer className="h-4 w-4 mr-2" />
+                Imprimir Recibo
+              </Button>
+            </DialogFooter>
           </DialogContent>
         </Dialog>
       )}

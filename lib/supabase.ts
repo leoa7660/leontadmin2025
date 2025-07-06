@@ -2,30 +2,16 @@ import { createClient } from "@supabase/supabase-js"
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!
 
-// Cliente para el lado del cliente (con RLS habilitado)
+// Cliente para el lado del cliente
 export const supabase = createClient(supabaseUrl, supabaseAnonKey)
 
-// Cliente para Server Actions (bypassa RLS)
-export const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey, {
-  auth: {
-    autoRefreshToken: false,
-    persistSession: false,
-  },
-})
-
-// Función helper para crear cliente del servidor
+// Cliente para el lado del servidor (Server Actions)
 export const createServerSupabaseClient = () => {
-  return createClient(supabaseUrl, supabaseServiceKey, {
-    auth: {
-      autoRefreshToken: false,
-      persistSession: false,
-    },
-  })
+  return createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!)
 }
 
-// Tipos de base de datos simplificados
+// Tipos de base de datos
 export interface Database {
   public: {
     Tables: {

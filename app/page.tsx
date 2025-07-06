@@ -23,18 +23,18 @@ import {
   authenticateUser,
 } from "./actions/database"
 
-// Tipos de datos (mantener los mismos que ya tienes)
+// Tipos de datos
 export interface Client {
   id: string
-  name: string
+  name: string // Apellido y Nombre
   email: string
   phone: string
   address: string
   dni: string
   fechaNacimiento: Date
-  vencimientoDni?: Date
-  numeroPasaporte?: string
-  vencimientoPasaporte?: Date
+  vencimientoDni?: Date // Ahora es opcional
+  numeroPasaporte?: string // Opcional
+  vencimientoPasaporte?: Date // Opcional
   createdAt: Date
 }
 
@@ -239,7 +239,7 @@ export default function TravelAgencyApp() {
                 <p className="font-semibold text-gray-900">{currentUser.name}</p>
                 <p className="text-xs text-gray-500 capitalize">{currentUser.role}</p>
               </div>
-              <Button variant="outline" onClick={handleLogout} className="flex items-center gap-2 bg-transparent">
+              <Button variant="outline" onClick={handleLogout} className="flex items-center gap-2">
                 <LogOut className="h-4 w-4" />
                 Cerrar Sesión
               </Button>
@@ -303,7 +303,7 @@ export default function TravelAgencyApp() {
 
           {hasPermission("clients") && (
             <TabsContent value="clients">
-              <ClientsManager clients={clients} onDataChange={loadAllData} />
+              <ClientsManager clients={clients} setClients={setClients} onDataChange={loadAllData} />
             </TabsContent>
           )}
 
@@ -317,10 +317,13 @@ export default function TravelAgencyApp() {
             <TabsContent value="trips">
               <TripsManager
                 trips={trips}
+                setTrips={setTrips}
                 buses={buses}
                 clients={clients}
                 tripPassengers={tripPassengers}
+                setTripPassengers={setTripPassengers}
                 payments={payments}
+                setPayments={setPayments}
                 onDataChange={loadAllData}
               />
             </TabsContent>
@@ -332,6 +335,7 @@ export default function TravelAgencyApp() {
                 clients={clients}
                 trips={trips}
                 payments={payments}
+                setPayments={setPayments}
                 tripPassengers={tripPassengers}
                 buses={buses}
                 currentUser={currentUser}
@@ -342,7 +346,7 @@ export default function TravelAgencyApp() {
 
           {currentUser.role === "admin" && (
             <TabsContent value="users">
-              <UsersManager users={users} currentUser={currentUser} onDataChange={loadAllData} />
+              <UsersManager users={users} setUsers={setUsers} currentUser={currentUser} onDataChange={loadAllData} />
             </TabsContent>
           )}
           {currentUser.role === "admin" && (

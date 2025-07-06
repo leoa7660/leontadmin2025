@@ -1,7 +1,6 @@
 "use client"
 
 import type React from "react"
-
 import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -17,11 +16,10 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { Badge } from "@/components/ui/badge"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Switch } from "@/components/ui/switch"
+import { Badge } from "@/components/ui/badge"
 import type { User } from "../page"
-import { Plus, Edit, Trash2, Search, Shield, UserIcon, Loader2 } from "lucide-react"
+import { Plus, Edit, Trash2, Search, Shield, Eye, EyeOff } from "lucide-react"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -33,30 +31,55 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
-import { useToast } from "@/hooks/use-toast"
-import { createUser, updateUser, deleteUser } from "../actions/database"
 
 interface UsersManagerProps {
   users: User[]
+  setUsers: (users: User[]) => void
   currentUser: User
-  onDataChange: () => Promise<void>
 }
 
-export function UsersManager({ users, currentUser, onDataChange }: UsersManagerProps) {
+const ROLES = [
+  {
+    id: "admin",
+    name: "Administrador",
+    description: "Acceso completo al sistema",
+    permissions: ["all"],
+    color: "destructive" as const,
+  },
+  {
+    id: "manager",
+    name: "Gerente",
+    description: "Gestión de viajes, clientes y reportes",
+    permissions: ["clients", "trips", "accounts", "buses", "dashboard"],
+    color: "default" as const,
+  },
+  {
+    id: "operator",
+    name: "Operador",
+    description: "Gestión de clientes y viajes",
+    permissions: ["clients", "trips", "accounts", "dashboard"],
+    color: "secondary" as const,
+  },
+  {
+    id: "readonly",
+    name: "Solo Lectura",
+    description: "Solo consulta de información",
+    permissions: ["dashboard"],
+    color: "outline" as const,
+  },
+]
+
+export function UsersManager({ users, setUsers, currentUser }: UsersManagerProps) {
   const [isDialogOpen, setIsDialogOpen] = useState(false)
   const [editingUser, setEditingUser] = useState<User | null>(null)
   const [searchTerm, setSearchTerm] = useState("")
-  const [isLoading, setIsLoading] = useState(false)
-  const [isDeleting, setIsDeleting] = useState<string | null>(null)
-  const { toast } = useToast()
-
+  const [showPassword, setShowPassword] = useState(false)
   const [formData, setFormData] = useState({
     username: "",
     password: "",
     name: "",
     email: "",
-    role: "operator" as User["role"],
-    isActive: true,
+    role: "",
   })
 
   const filteredUsers = users.filter(
@@ -66,57 +89,35 @@ export function UsersManager({ users, currentUser, onDataChange }: UsersManagerP
       user.email.toLowerCase().includes(searchTerm.toLowerCase()),
   )
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
-    setIsLoading(true)
 
-    try {
-      if (editingUser) {
-        // Editar usuario existente
-        await updateUser(editingUser.id, {
-          username: formData.username,
-          password: formData.password || editingUser.password, // Mantener contraseña actual si no se cambia
-          name: formData.name,
-          email: formData.email,
-          role: formData.role,
-          isActive: formData.isActive,
-        })
-
-        toast({
-          title: "Usuario actualizado",
-          description: `El usuario ${formData.name} ha sido actualizado exitosamente.`,
-        })
-      } else {
-        // Crear nuevo usuario
-        await createUser({
-          username: formData.username,
-          password: formData.password,
-          name: formData.name,
-          email: formData.email,
-          role: formData.role,
-          isActive: formData.isActive,
-        })
-
-        toast({
-          title: "Usuario creado",
-          description: `El usuario ${formData.name} ha sido creado exitosamente.`,
-        })
+    if (editingUser) {
+      // Editar usuario existente
+      const updatedUser: User = {
+        ...editingUser,
+        name: formData.name,
+        email: formData.email,
+        role: formData.role as User["role"],
+        ...(formData.password && { password: formData.password }), // Solo actualizar contraseña si se proporciona
       }
-
-      // Recargar datos
-      await onDataChange()
-      resetForm()
-    } catch (error) {
-      console.error("Error saving user:", error)
-      toast({
-        title: "Error",
-        description:
-          error instanceof Error ? error.message : "Error al guardar el usuario. Por favor, intenta de nuevo.",
-        variant: "destructive",
-      })
-    } finally {
-      setIsLoading(false)
+      setUsers(users.map((user) => (user.id === editingUser.id ? updatedUser : user)))
+    } else {
+      // Crear nuevo usuario
+      const newUser: User = {
+        id: Date.now().toString(),
+        username: formData.username,
+        password: formData.password,
+        name: formData.name,
+        email: formData.email,
+        role: formData.role as User["role"],
+        createdAt: new Date(),
+        isActive: true,
+      }
+      setUsers([...users, newUser])
     }
+
+    resetForm()
   }
 
   const resetForm = () => {
@@ -125,119 +126,44 @@ export function UsersManager({ users, currentUser, onDataChange }: UsersManagerP
       password: "",
       name: "",
       email: "",
-      role: "operator",
-      isActive: true,
+      role: "",
     })
     setEditingUser(null)
     setIsDialogOpen(false)
+    setShowPassword(false)
   }
 
   const handleEdit = (user: User) => {
     setEditingUser(user)
     setFormData({
       username: user.username,
-      password: "", // No mostrar la contraseña actual
+      password: "", // No mostrar contraseña actual
       name: user.name,
       email: user.email,
       role: user.role,
-      isActive: user.isActive,
     })
     setIsDialogOpen(true)
   }
 
-  const handleDelete = async (userId: string) => {
-    if (userId === currentUser.id) {
-      toast({
-        title: "Error",
-        description: "No puedes eliminar tu propio usuario.",
-        variant: "destructive",
-      })
-      return
-    }
-
-    setIsDeleting(userId)
-
-    try {
-      await deleteUser(userId)
-      await onDataChange()
-
-      toast({
-        title: "Usuario eliminado",
-        description: "El usuario ha sido eliminado exitosamente.",
-      })
-    } catch (error) {
-      console.error("Error deleting user:", error)
-      toast({
-        title: "Error",
-        description:
-          error instanceof Error ? error.message : "Error al eliminar el usuario. Por favor, intenta de nuevo.",
-        variant: "destructive",
-      })
-    } finally {
-      setIsDeleting(null)
-    }
+  const handleDelete = (userId: string) => {
+    setUsers(users.filter((user) => user.id !== userId))
   }
 
-  const handleToggleActive = async (user: User) => {
-    if (user.id === currentUser.id) {
-      toast({
-        title: "Error",
-        description: "No puedes desactivar tu propio usuario.",
-        variant: "destructive",
-      })
-      return
-    }
-
-    try {
-      await updateUser(user.id, {
-        isActive: !user.isActive,
-      })
-
-      await onDataChange()
-
-      toast({
-        title: user.isActive ? "Usuario desactivado" : "Usuario activado",
-        description: `El usuario ${user.name} ha sido ${user.isActive ? "desactivado" : "activado"} exitosamente.`,
-      })
-    } catch (error) {
-      console.error("Error toggling user status:", error)
-      toast({
-        title: "Error",
-        description: error instanceof Error ? error.message : "Error al cambiar el estado del usuario.",
-        variant: "destructive",
-      })
-    }
+  const toggleUserStatus = (userId: string) => {
+    setUsers(users.map((user) => (user.id === userId ? { ...user, isActive: !user.isActive } : user)))
   }
 
-  const getRoleBadge = (role: User["role"]) => {
-    switch (role) {
-      case "admin":
-        return (
-          <Badge variant="destructive" className="flex items-center gap-1">
-            <Shield className="h-3 w-3" />
-            Administrador
-          </Badge>
-        )
-      case "manager":
-        return (
-          <Badge variant="default" className="flex items-center gap-1">
-            <UserIcon className="h-3 w-3" />
-            Gerente
-          </Badge>
-        )
-      case "operator":
-        return (
-          <Badge variant="secondary" className="flex items-center gap-1">
-            <UserIcon className="h-3 w-3" />
-            Operador
-          </Badge>
-        )
-      default:
-        return <Badge variant="outline">Desconocido</Badge>
-    }
+  const getRoleInfo = (roleId: string) => {
+    return ROLES.find((role) => role.id === roleId) || ROLES[3]
   }
 
-  const canManageUsers = currentUser.role === "admin"
+  const canDeleteUser = (user: User) => {
+    return user.id !== currentUser.id && currentUser.role === "admin"
+  }
+
+  const canEditUser = (user: User) => {
+    return currentUser.role === "admin" || user.id === currentUser.id
+  }
 
   return (
     <div className="space-y-6">
@@ -246,9 +172,9 @@ export function UsersManager({ users, currentUser, onDataChange }: UsersManagerP
           <div className="flex items-center justify-between">
             <div>
               <CardTitle>Gestión de Usuarios</CardTitle>
-              <CardDescription>Administra los usuarios del sistema y sus permisos</CardDescription>
+              <CardDescription>Administra usuarios del sistema y sus permisos</CardDescription>
             </div>
-            {canManageUsers && (
+            {currentUser.role === "admin" && (
               <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
                 <DialogTrigger asChild>
                   <Button onClick={() => setEditingUser(null)}>
@@ -266,127 +192,92 @@ export function UsersManager({ users, currentUser, onDataChange }: UsersManagerP
                   <form onSubmit={handleSubmit}>
                     <div className="grid gap-4 py-4">
                       <div className="grid gap-2">
-                        <Label htmlFor="name">
-                          Nombre Completo <span className="text-red-500">*</span>
+                        <Label htmlFor="username">Nombre de Usuario</Label>
+                        <Input
+                          id="username"
+                          value={formData.username}
+                          onChange={(e) => setFormData({ ...formData, username: e.target.value })}
+                          disabled={!!editingUser} // No permitir cambiar username en edición
+                          required
+                        />
+                      </div>
+                      <div className="grid gap-2">
+                        <Label htmlFor="password">
+                          Contraseña {editingUser && "(dejar vacío para mantener actual)"}
                         </Label>
+                        <div className="relative">
+                          <Input
+                            id="password"
+                            type={showPassword ? "text" : "password"}
+                            value={formData.password}
+                            onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                            required={!editingUser}
+                          />
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
+                            onClick={() => setShowPassword(!showPassword)}
+                          >
+                            {showPassword ? (
+                              <EyeOff className="h-4 w-4 text-muted-foreground" />
+                            ) : (
+                              <Eye className="h-4 w-4 text-muted-foreground" />
+                            )}
+                          </Button>
+                        </div>
+                      </div>
+                      <div className="grid gap-2">
+                        <Label htmlFor="name">Nombre Completo</Label>
                         <Input
                           id="name"
                           value={formData.name}
                           onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                          placeholder="Ej: Juan Pérez"
                           required
-                          disabled={isLoading}
                         />
                       </div>
-
-                      <div className="grid grid-cols-2 gap-4">
-                        <div className="grid gap-2">
-                          <Label htmlFor="username">
-                            Usuario <span className="text-red-500">*</span>
-                          </Label>
-                          <Input
-                            id="username"
-                            value={formData.username}
-                            onChange={(e) => setFormData({ ...formData, username: e.target.value })}
-                            placeholder="Ej: jperez"
-                            required
-                            disabled={isLoading}
-                          />
-                        </div>
-                        <div className="grid gap-2">
-                          <Label htmlFor="email">
-                            Email <span className="text-red-500">*</span>
-                          </Label>
-                          <Input
-                            id="email"
-                            type="email"
-                            value={formData.email}
-                            onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                            placeholder="juan@empresa.com"
-                            required
-                            disabled={isLoading}
-                          />
-                        </div>
-                      </div>
-
                       <div className="grid gap-2">
-                        <Label htmlFor="password">
-                          {editingUser ? "Nueva Contraseña (dejar vacío para mantener actual)" : "Contraseña"}{" "}
-                          {!editingUser && <span className="text-red-500">*</span>}
-                        </Label>
+                        <Label htmlFor="email">Email</Label>
                         <Input
-                          id="password"
-                          type="password"
-                          value={formData.password}
-                          onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                          placeholder={editingUser ? "Dejar vacío para no cambiar" : "Contraseña segura"}
-                          required={!editingUser}
-                          disabled={isLoading}
+                          id="email"
+                          type="email"
+                          value={formData.email}
+                          onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                          required
                         />
                       </div>
-
                       <div className="grid gap-2">
-                        <Label htmlFor="role">
-                          Rol <span className="text-red-500">*</span>
-                        </Label>
+                        <Label htmlFor="role">Rol</Label>
                         <Select
                           value={formData.role}
-                          onValueChange={(value) => setFormData({ ...formData, role: value as User["role"] })}
-                          disabled={isLoading}
+                          onValueChange={(value) => setFormData({ ...formData, role: value })}
+                          required
                         >
                           <SelectTrigger>
                             <SelectValue placeholder="Seleccionar rol" />
                           </SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="operator">
-                              <div className="flex items-center gap-2">
-                                <UserIcon className="h-4 w-4" />
-                                <div>
-                                  <div className="font-medium">Operador</div>
-                                  <div className="text-xs text-muted-foreground">Acceso básico</div>
+                            {ROLES.map((role) => (
+                              <SelectItem key={role.id} value={role.id}>
+                                <div className="flex items-center gap-2">
+                                  <Shield className="h-4 w-4" />
+                                  <div>
+                                    <div className="font-medium">{role.name}</div>
+                                    <div className="text-xs text-muted-foreground">{role.description}</div>
+                                  </div>
                                 </div>
-                              </div>
-                            </SelectItem>
-                            <SelectItem value="manager">
-                              <div className="flex items-center gap-2">
-                                <UserIcon className="h-4 w-4" />
-                                <div>
-                                  <div className="font-medium">Gerente</div>
-                                  <div className="text-xs text-muted-foreground">Gestión completa</div>
-                                </div>
-                              </div>
-                            </SelectItem>
-                            <SelectItem value="admin">
-                              <div className="flex items-center gap-2">
-                                <Shield className="h-4 w-4" />
-                                <div>
-                                  <div className="font-medium">Administrador</div>
-                                  <div className="text-xs text-muted-foreground">Acceso total</div>
-                                </div>
-                              </div>
-                            </SelectItem>
+                              </SelectItem>
+                            ))}
                           </SelectContent>
                         </Select>
                       </div>
-
-                      <div className="flex items-center space-x-2">
-                        <Switch
-                          id="isActive"
-                          checked={formData.isActive}
-                          onCheckedChange={(checked) => setFormData({ ...formData, isActive: checked })}
-                          disabled={isLoading}
-                        />
-                        <Label htmlFor="isActive">Usuario activo</Label>
-                      </div>
                     </div>
                     <DialogFooter>
-                      <Button type="button" variant="outline" onClick={resetForm} disabled={isLoading}>
+                      <Button type="button" variant="outline" onClick={resetForm}>
                         Cancelar
                       </Button>
-                      <Button type="submit" disabled={isLoading}>
-                        {isLoading && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-                        {editingUser ? "Guardar Cambios" : "Crear Usuario"}
-                      </Button>
+                      <Button type="submit">{editingUser ? "Guardar Cambios" : "Crear Usuario"}</Button>
                     </DialogFooter>
                   </form>
                 </DialogContent>
@@ -395,100 +286,141 @@ export function UsersManager({ users, currentUser, onDataChange }: UsersManagerP
           </div>
         </CardHeader>
         <CardContent>
-          <div className="space-y-4">
-            <div className="flex items-center space-x-2">
-              <Search className="h-4 w-4 text-muted-foreground" />
-              <Input
-                placeholder="Buscar por nombre, usuario o email..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="max-w-sm"
-              />
-            </div>
+          <div className="flex items-center space-x-2 mb-4">
+            <Search className="h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Buscar por nombre, usuario o email..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="max-w-sm"
+            />
+          </div>
 
-            <div className="rounded-md border">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Nombre</TableHead>
-                    <TableHead>Usuario</TableHead>
-                    <TableHead>Email</TableHead>
-                    <TableHead>Rol</TableHead>
-                    <TableHead>Estado</TableHead>
-                    <TableHead>Fecha Creación</TableHead>
-                    {canManageUsers && <TableHead>Acciones</TableHead>}
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {filteredUsers.map((user) => (
+          <div className="rounded-md border">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Usuario</TableHead>
+                  <TableHead>Nombre</TableHead>
+                  <TableHead>Email</TableHead>
+                  <TableHead>Rol</TableHead>
+                  <TableHead>Estado</TableHead>
+                  <TableHead>Fecha Creación</TableHead>
+                  <TableHead>Acciones</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {filteredUsers.map((user) => {
+                  const roleInfo = getRoleInfo(user.role)
+                  return (
                     <TableRow key={user.id}>
-                      <TableCell className="font-medium">{user.name}</TableCell>
-                      <TableCell>{user.username}</TableCell>
+                      <TableCell className="font-medium">{user.username}</TableCell>
+                      <TableCell>{user.name}</TableCell>
                       <TableCell>{user.email}</TableCell>
-                      <TableCell>{getRoleBadge(user.role)}</TableCell>
                       <TableCell>
-                        <div className="flex items-center space-x-2">
-                          {canManageUsers && user.id !== currentUser.id ? (
-                            <Switch
-                              checked={user.isActive}
-                              onCheckedChange={() => handleToggleActive(user)}
-                              size="sm"
-                            />
-                          ) : (
-                            <Badge variant={user.isActive ? "default" : "secondary"}>
-                              {user.isActive ? "Activo" : "Inactivo"}
-                            </Badge>
-                          )}
-                        </div>
+                        <Badge variant={roleInfo.color} className="flex items-center gap-1 w-fit">
+                          <Shield className="h-3 w-3" />
+                          {roleInfo.name}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant={user.isActive ? "default" : "secondary"}>
+                          {user.isActive ? "Activo" : "Inactivo"}
+                        </Badge>
                       </TableCell>
                       <TableCell>{user.createdAt.toLocaleDateString()}</TableCell>
-                      {canManageUsers && (
-                        <TableCell>
-                          <div className="flex items-center space-x-2">
+                      <TableCell>
+                        <div className="flex items-center space-x-2">
+                          {canEditUser(user) && (
                             <Button variant="outline" size="sm" onClick={() => handleEdit(user)}>
                               <Edit className="h-4 w-4" />
                             </Button>
-                            {user.id !== currentUser.id && (
-                              <AlertDialog>
-                                <AlertDialogTrigger asChild>
-                                  <Button variant="outline" size="sm" disabled={isDeleting === user.id}>
-                                    {isDeleting === user.id ? (
-                                      <Loader2 className="h-4 w-4 animate-spin" />
-                                    ) : (
-                                      <Trash2 className="h-4 w-4" />
-                                    )}
-                                  </Button>
-                                </AlertDialogTrigger>
-                                <AlertDialogContent>
-                                  <AlertDialogHeader>
-                                    <AlertDialogTitle>¿Eliminar usuario?</AlertDialogTitle>
-                                    <AlertDialogDescription>
-                                      Esta acción no se puede deshacer. Se eliminará permanentemente el usuario{" "}
-                                      {user.name} del sistema.
-                                    </AlertDialogDescription>
-                                  </AlertDialogHeader>
-                                  <AlertDialogFooter>
-                                    <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                                    <AlertDialogAction onClick={() => handleDelete(user.id)}>
-                                      Eliminar
-                                    </AlertDialogAction>
-                                  </AlertDialogFooter>
-                                </AlertDialogContent>
-                              </AlertDialog>
-                            )}
-                          </div>
-                        </TableCell>
-                      )}
+                          )}
+                          {currentUser.role === "admin" && user.id !== currentUser.id && (
+                            <Button variant="outline" size="sm" onClick={() => toggleUserStatus(user.id)}>
+                              {user.isActive ? "Desactivar" : "Activar"}
+                            </Button>
+                          )}
+                          {canDeleteUser(user) && (
+                            <AlertDialog>
+                              <AlertDialogTrigger asChild>
+                                <Button variant="outline" size="sm">
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              </AlertDialogTrigger>
+                              <AlertDialogContent>
+                                <AlertDialogHeader>
+                                  <AlertDialogTitle>¿Eliminar usuario?</AlertDialogTitle>
+                                  <AlertDialogDescription>
+                                    Esta acción no se puede deshacer. Se eliminará permanentemente el usuario{" "}
+                                    {user.name} del sistema.
+                                  </AlertDialogDescription>
+                                </AlertDialogHeader>
+                                <AlertDialogFooter>
+                                  <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                  <AlertDialogAction onClick={() => handleDelete(user.id)}>Eliminar</AlertDialogAction>
+                                </AlertDialogFooter>
+                              </AlertDialogContent>
+                            </AlertDialog>
+                          )}
+                        </div>
+                      </TableCell>
                     </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-              {filteredUsers.length === 0 && (
-                <div className="text-center py-8 text-muted-foreground">
-                  {searchTerm ? "No se encontraron usuarios" : "No hay usuarios registrados"}
-                </div>
-              )}
-            </div>
+                  )
+                })}
+              </TableBody>
+            </Table>
+            {filteredUsers.length === 0 && (
+              <div className="text-center py-8 text-muted-foreground">
+                {searchTerm ? "No se encontraron usuarios" : "No hay usuarios registrados"}
+              </div>
+            )}
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Información de Roles */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Roles y Permisos</CardTitle>
+          <CardDescription>Descripción de los roles disponibles en el sistema</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="grid gap-4 md:grid-cols-2">
+            {ROLES.map((role) => (
+              <Card key={role.id} className="border-l-4 border-l-blue-500">
+                <CardHeader className="pb-3">
+                  <div className="flex items-center gap-2">
+                    <Badge variant={role.color} className="flex items-center gap-1">
+                      <Shield className="h-3 w-3" />
+                      {role.name}
+                    </Badge>
+                  </div>
+                  <CardDescription>{role.description}</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-sm">
+                    <strong>Permisos:</strong>
+                    <ul className="mt-1 text-muted-foreground">
+                      {role.permissions.includes("all") ? (
+                        <li>• Acceso completo al sistema</li>
+                      ) : (
+                        role.permissions.map((permission) => (
+                          <li key={permission}>
+                            • {permission === "dashboard" && "Dashboard"}
+                            {permission === "clients" && "Gestión de Clientes"}
+                            {permission === "trips" && "Gestión de Viajes"}
+                            {permission === "buses" && "Gestión de Buses"}
+                            {permission === "accounts" && "Cuentas Corrientes"}
+                            {permission === "users" && "Gestión de Usuarios"}
+                          </li>
+                        ))
+                      )}
+                    </ul>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
           </div>
         </CardContent>
       </Card>
