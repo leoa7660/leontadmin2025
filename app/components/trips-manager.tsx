@@ -1600,6 +1600,268 @@ export function TripsManager({
                 </form>
               </DialogContent>
             </Dialog>
+            {/* DIALOGO PARA EDITAR VIAJE */}
+            <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+              <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
+                <DialogHeader>
+                  <DialogTitle>Editar Viaje</DialogTitle>
+                  <DialogDescription>Modifica los datos del viaje seleccionado</DialogDescription>
+                </DialogHeader>
+                <form onSubmit={handleEditSubmit}>
+                  <div className="grid gap-4 py-4">
+                    {/* TIPO DE VIAJE - PRIMERO */}
+                    <div className="grid gap-2">
+                      <Label htmlFor="edit-type">Tipo de Viaje</Label>
+                      <Select
+                        value={formData.type}
+                        onValueChange={(value) => setFormData({ ...formData, type: value, busId: "" })}
+                        required
+                        disabled={isLoading}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Seleccionar tipo" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="grupal">
+                            <div className="flex items-center gap-2">
+                              <Users className="h-4 w-4" />
+                              <div>
+                                <div className="font-medium">Salida Grupal</div>
+                                <div className="text-xs text-muted-foreground">Requiere bus - Múltiples pasajeros</div>
+                              </div>
+                            </div>
+                          </SelectItem>
+                          <SelectItem value="individual">
+                            <div className="flex items-center gap-2">
+                              <Car className="h-4 w-4" />
+                              <div>
+                                <div className="font-medium">Salida Individual</div>
+                                <div className="text-xs text-muted-foreground">Sin bus - Servicio personalizado</div>
+                              </div>
+                            </div>
+                          </SelectItem>
+                          <SelectItem value="crucero">
+                            <div className="flex items-center gap-2">
+                              <Ship className="h-4 w-4" />
+                              <div>
+                                <div className="font-medium">Crucero</div>
+                                <div className="text-xs text-muted-foreground">Viaje en barco - Cabinas</div>
+                              </div>
+                            </div>
+                          </SelectItem>
+                          <SelectItem value="aereo">
+                            <div className="flex items-center gap-2">
+                              <Plane className="h-4 w-4" />
+                              <div>
+                                <div className="font-medium">Aéreo</div>
+                                <div className="text-xs text-muted-foreground">Viaje en avión - Asientos</div>
+                              </div>
+                            </div>
+                          </SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    {/* BUS - SEGUNDO (SOLO SI ES GRUPAL) */}
+                    {formData.type === "grupal" && (
+                      <div className="grid gap-2">
+                        <Label htmlFor="edit-busId">Bus</Label>
+                        <Select
+                          value={formData.busId}
+                          onValueChange={(value) => setFormData({ ...formData, busId: value })}
+                          required
+                          disabled={isLoading}
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="Seleccionar bus" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {buses.map((bus) => (
+                              <SelectItem key={bus.id} value={bus.id}>
+                                {bus.patente} - {bus.tipoServicio} ({bus.asientos} asientos)
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    )}
+
+                    {/* DESTINO - TERCERO */}
+                    <div className="grid gap-2">
+                      <Label htmlFor="edit-destino">Destino</Label>
+                      <Input
+                        id="edit-destino"
+                        value={formData.destino}
+                        onChange={(e) => setFormData({ ...formData, destino: e.target.value })}
+                        type="text"
+                        required
+                        disabled={isLoading}
+                      />
+                    </div>
+
+                    {/* FECHAS - CUARTO */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="grid gap-2">
+                        <Label htmlFor="edit-fechaSalida">Fecha de Salida</Label>
+                        <Input
+                          id="edit-fechaSalida"
+                          type="datetime-local"
+                          value={formData.fechaSalida}
+                          onChange={(e) => setFormData({ ...formData, fechaSalida: e.target.value })}
+                          required
+                          disabled={isLoading}
+                        />
+                      </div>
+                      <div className="grid gap-2">
+                        <Label htmlFor="edit-fechaRegreso">Fecha de Regreso</Label>
+                        <Input
+                          id="edit-fechaRegreso"
+                          type="datetime-local"
+                          value={formData.fechaRegreso}
+                          onChange={(e) => setFormData({ ...formData, fechaRegreso: e.target.value })}
+                          required
+                          disabled={isLoading}
+                        />
+                      </div>
+                    </div>
+
+                    {/* IMPORTE Y MONEDA - QUINTO */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="grid gap-2">
+                        <Label htmlFor="edit-importe">Importe</Label>
+                        <Input
+                          id="edit-importe"
+                          type="number"
+                          value={formData.importe}
+                          onChange={(e) => setFormData({ ...formData, importe: e.target.value })}
+                          required
+                          disabled={isLoading}
+                        />
+                      </div>
+                      <div className="grid gap-2">
+                        <Label htmlFor="edit-currency">Moneda</Label>
+                        <Select
+                          value={formData.currency}
+                          onValueChange={(value) => setFormData({ ...formData, currency: value })}
+                          required
+                          disabled={isLoading}
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="Seleccionar moneda" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="ARS">ARS</SelectItem>
+                            <SelectItem value="USD">USD</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+
+                    {/* CRUCERO - CAMPOS ADICIONALES */}
+                    {formData.type === "crucero" && (
+                      <>
+                        <div className="grid gap-2">
+                          <Label htmlFor="edit-naviera">Naviera</Label>
+                          <Input
+                            id="edit-naviera"
+                            type="text"
+                            value={formData.naviera}
+                            onChange={(e) => setFormData({ ...formData, naviera: e.target.value })}
+                            disabled={isLoading}
+                          />
+                        </div>
+                        <div className="grid gap-2">
+                          <Label htmlFor="edit-barco">Barco</Label>
+                          <Input
+                            id="edit-barco"
+                            type="text"
+                            value={formData.barco}
+                            onChange={(e) => setFormData({ ...formData, barco: e.target.value })}
+                            disabled={isLoading}
+                          />
+                        </div>
+                        <div className="grid gap-2">
+                          <Label htmlFor="edit-cabina">Tipo de Cabina</Label>
+                          <Input
+                            id="edit-cabina"
+                            type="text"
+                            value={formData.cabina}
+                            onChange={(e) => setFormData({ ...formData, cabina: e.target.value })}
+                            disabled={isLoading}
+                          />
+                        </div>
+                      </>
+                    )}
+
+                    {/* AEREO - CAMPOS ADICIONALES */}
+                    {formData.type === "aereo" && (
+                      <>
+                        <div className="grid gap-2">
+                          <Label htmlFor="edit-aerolinea">Aerolínea</Label>
+                          <Input
+                            id="edit-aerolinea"
+                            type="text"
+                            value={formData.aerolinea}
+                            onChange={(e) => setFormData({ ...formData, aerolinea: e.target.value })}
+                            disabled={isLoading}
+                          />
+                        </div>
+                        <div className="grid gap-2">
+                          <Label htmlFor="edit-numeroVuelo">Número de Vuelo</Label>
+                          <Input
+                            id="edit-numeroVuelo"
+                            type="text"
+                            value={formData.numeroVuelo}
+                            onChange={(e) => setFormData({ ...formData, numeroVuelo: e.target.value })}
+                            disabled={isLoading}
+                          />
+                        </div>
+                        <div className="grid gap-2">
+                          <Label htmlFor="edit-clase">Clase</Label>
+                          <Input
+                            id="edit-clase"
+                            type="text"
+                            value={formData.clase}
+                            onChange={(e) => setFormData({ ...formData, clase: e.target.value })}
+                            disabled={isLoading}
+                          />
+                        </div>
+                        <div className="grid gap-2">
+                          <Label htmlFor="edit-escalas">Escalas</Label>
+                          <Input
+                            id="edit-escalas"
+                            type="text"
+                            value={formData.escalas}
+                            onChange={(e) => setFormData({ ...formData, escalas: e.target.value })}
+                            disabled={isLoading}
+                          />
+                        </div>
+                      </>
+                    )}
+
+                    {/* DESCRIPCION - ULTIMO */}
+                    <div className="grid gap-2">
+                      <Label htmlFor="edit-descripcion">Descripción</Label>
+                      <Textarea
+                        id="edit-descripcion"
+                        value={formData.descripcion}
+                        onChange={(e) => setFormData({ ...formData, descripcion: e.target.value })}
+                        rows={3}
+                        disabled={isLoading}
+                      />
+                    </div>
+                  </div>
+                  <DialogFooter>
+                    <Button type="button" variant="outline" onClick={resetEditForm} disabled={isLoading}>
+                      Cancelar
+                    </Button>
+                    <Button type="submit" disabled={isLoading}>
+                      {isLoading ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : "Actualizar Viaje"}
+                    </Button>
+                  </DialogFooter>
+                </form>
+              </DialogContent>
+            </Dialog>
           </div>
         </CardHeader>
         <CardContent>
