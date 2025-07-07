@@ -17,7 +17,7 @@ import {
 } from "@/components/ui/dialog"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import type { Bus } from "../page"
-import { Plus, Edit, Trash2, Search, BusIcon, Upload, Eye, X, ImageIcon } from "lucide-react"
+import { Plus, Edit, Trash2, Search, BusIcon, Upload, Eye, X, ImageIcon, Loader2 } from "lucide-react"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -29,20 +29,27 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
+import { useToast } from "@/hooks/use-toast"
 import Image from "next/image"
+import { createBus, updateBus, deleteBus } from "../actions/database"
 
 interface BusesManagerProps {
   buses: Bus[]
   setBuses: (buses: Bus[]) => void
+  onDataChange?: () => void
 }
 
-export function BusesManager({ buses, setBuses }: BusesManagerProps) {
+export function BusesManager({ buses, setBuses, onDataChange }: BusesManagerProps) {
   const [isDialogOpen, setIsDialogOpen] = useState(false)
   const [editingBus, setEditingBus] = useState<Bus | null>(null)
   const [searchTerm, setSearchTerm] = useState("")
   const [selectedImage, setSelectedImage] = useState<string | null>(null)
   const [isImageDialogOpen, setIsImageDialogOpen] = useState(false)
+  const [isLoading, setIsLoading] = useState(false)
+  const [isDeleting, setIsDeleting] = useState<string | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const { toast } = useToast()
+
   const [formData, setFormData] = useState({
     patente: "",
     asientos: "",
@@ -61,13 +68,21 @@ export function BusesManager({ buses, setBuses }: BusesManagerProps) {
     if (file) {
       // Validar tipo de archivo
       if (!file.type.startsWith("image/")) {
-        alert("Por favor selecciona un archivo de imagen válido")
+        toast({
+          title: "Error",
+          description: "Por favor selecciona un archivo de imagen válido",
+          variant: "destructive",
+        })
         return
       }
 
       // Validar tamaño (máximo 5MB)
       if (file.size > 5 * 1024 * 1024) {
-        alert("La imagen debe ser menor a 5MB")
+        toast({
+          title: "Error",
+          description: "La imagen debe ser menor a 5MB",
+          variant: "destructive",
+        })
         return
       }
 
@@ -87,38 +102,50 @@ export function BusesManager({ buses, setBuses }: BusesManagerProps) {
     }
   }
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    setIsLoading(true)
 
-    if (editingBus) {
-      // Editar bus existente
-      setBuses(
-        buses.map((bus) =>
-          bus.id === editingBus.id
-            ? {
-                ...bus,
-                patente: formData.patente,
-                asientos: Number.parseInt(formData.asientos),
-                tipoServicio: formData.tipoServicio,
-                imagenDistribucion: formData.imagenDistribucion,
-              }
-            : bus,
-        ),
-      )
-    } else {
-      // Crear nuevo bus
-      const newBus: Bus = {
-        id: Date.now().toString(),
-        patente: formData.patente,
+    try {
+      const busData = {
+        patente: formData.patente.toUpperCase(),
         asientos: Number.parseInt(formData.asientos),
         tipoServicio: formData.tipoServicio,
-        imagenDistribucion: formData.imagenDistribucion,
-        createdAt: new Date(),
+        imagenDistribucion: formData.imagenDistribucion || undefined,
       }
-      setBuses([...buses, newBus])
-    }
 
-    resetForm()
+      if (editingBus) {
+        // Editar bus existente
+        await updateBus(editingBus.id, busData)
+        toast({
+          title: "Éxito",
+          description: "Bus actualizado correctamente",
+        })
+      } else {
+        // Crear nuevo bus
+        await createBus(busData)
+        toast({
+          title: "Éxito",
+          description: "Bus creado correctamente",
+        })
+      }
+
+      // Recargar datos
+      if (onDataChange) {
+        await onDataChange()
+      }
+
+      resetForm()
+    } catch (error) {
+      console.error("Error saving bus:", error)
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Error al guardar el bus",
+        variant: "destructive",
+      })
+    } finally {
+      setIsLoading(false)
+    }
   }
 
   const resetForm = () => {
@@ -146,13 +173,40 @@ export function BusesManager({ buses, setBuses }: BusesManagerProps) {
     setIsDialogOpen(true)
   }
 
-  const handleDelete = (busId: string) => {
-    setBuses(buses.filter((bus) => bus.id !== busId))
+  const handleDelete = async (busId: string) => {
+    setIsDeleting(busId)
+    try {
+      await deleteBus(busId)
+      toast({
+        title: "Éxito",
+        description: "Bus eliminado correctamente",
+      })
+
+      // Recargar datos
+      if (onDataChange) {
+        await onDataChange()
+      }
+    } catch (error) {
+      console.error("Error deleting bus:", error)
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Error al eliminar el bus",
+        variant: "destructive",
+      })
+    } finally {
+      setIsDeleting(null)
+    }
   }
 
   const openImageDialog = (imageUrl: string) => {
     setSelectedImage(imageUrl)
     setIsImageDialogOpen(true)
+  }
+
+  const handleNewBus = () => {
+    setEditingBus(null)
+    resetForm()
+    setIsDialogOpen(true)
   }
 
   return (
@@ -166,7 +220,7 @@ export function BusesManager({ buses, setBuses }: BusesManagerProps) {
             </div>
             <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
               <DialogTrigger asChild>
-                <Button onClick={() => setEditingBus(null)}>
+                <Button onClick={handleNewBus}>
                   <Plus className="h-4 w-4 mr-2" />
                   Nuevo Bus
                 </Button>
@@ -188,6 +242,7 @@ export function BusesManager({ buses, setBuses }: BusesManagerProps) {
                         onChange={(e) => setFormData({ ...formData, patente: e.target.value.toUpperCase() })}
                         placeholder="ABC123"
                         required
+                        disabled={isLoading}
                       />
                     </div>
                     <div className="grid gap-2">
@@ -200,6 +255,7 @@ export function BusesManager({ buses, setBuses }: BusesManagerProps) {
                         value={formData.asientos}
                         onChange={(e) => setFormData({ ...formData, asientos: e.target.value })}
                         required
+                        disabled={isLoading}
                       />
                     </div>
                     <div className="grid gap-2">
@@ -210,6 +266,7 @@ export function BusesManager({ buses, setBuses }: BusesManagerProps) {
                         onChange={(e) => setFormData({ ...formData, tipoServicio: e.target.value })}
                         placeholder="Ej: Ejecutivo, Semi-cama, Cama"
                         required
+                        disabled={isLoading}
                       />
                     </div>
                     <div className="grid gap-2">
@@ -223,18 +280,26 @@ export function BusesManager({ buses, setBuses }: BusesManagerProps) {
                             onChange={handleImageUpload}
                             className="hidden"
                             id="imagen-upload"
+                            disabled={isLoading}
                           />
                           <Button
                             type="button"
                             variant="outline"
                             onClick={() => fileInputRef.current?.click()}
                             className="flex items-center gap-2"
+                            disabled={isLoading}
                           >
                             <Upload className="h-4 w-4" />
                             {formData.imagenDistribucion ? "Cambiar Imagen" : "Subir Imagen"}
                           </Button>
                           {formData.imagenDistribucion && (
-                            <Button type="button" variant="outline" size="sm" onClick={removeImage}>
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              onClick={removeImage}
+                              disabled={isLoading}
+                            >
                               <X className="h-4 w-4" />
                             </Button>
                           )}
@@ -263,10 +328,13 @@ export function BusesManager({ buses, setBuses }: BusesManagerProps) {
                     </div>
                   </div>
                   <DialogFooter>
-                    <Button type="button" variant="outline" onClick={resetForm}>
+                    <Button type="button" variant="outline" onClick={resetForm} disabled={isLoading}>
                       Cancelar
                     </Button>
-                    <Button type="submit">{editingBus ? "Guardar Cambios" : "Crear Bus"}</Button>
+                    <Button type="submit" disabled={isLoading}>
+                      {isLoading && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+                      {editingBus ? "Guardar Cambios" : "Crear Bus"}
+                    </Button>
                   </DialogFooter>
                 </form>
               </DialogContent>
@@ -342,13 +410,22 @@ export function BusesManager({ buses, setBuses }: BusesManagerProps) {
                     <TableCell>{bus.createdAt.toLocaleDateString()}</TableCell>
                     <TableCell>
                       <div className="flex items-center space-x-2">
-                        <Button variant="outline" size="sm" onClick={() => handleEdit(bus)}>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleEdit(bus)}
+                          disabled={isDeleting === bus.id}
+                        >
                           <Edit className="h-4 w-4" />
                         </Button>
                         <AlertDialog>
                           <AlertDialogTrigger asChild>
-                            <Button variant="outline" size="sm">
-                              <Trash2 className="h-4 w-4" />
+                            <Button variant="outline" size="sm" disabled={isDeleting === bus.id}>
+                              {isDeleting === bus.id ? (
+                                <Loader2 className="h-4 w-4 animate-spin" />
+                              ) : (
+                                <Trash2 className="h-4 w-4" />
+                              )}
                             </Button>
                           </AlertDialogTrigger>
                           <AlertDialogContent>
@@ -361,7 +438,12 @@ export function BusesManager({ buses, setBuses }: BusesManagerProps) {
                             </AlertDialogHeader>
                             <AlertDialogFooter>
                               <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                              <AlertDialogAction onClick={() => handleDelete(bus.id)}>Eliminar</AlertDialogAction>
+                              <AlertDialogAction
+                                onClick={() => handleDelete(bus.id)}
+                                className="bg-red-600 hover:bg-red-700"
+                              >
+                                Eliminar
+                              </AlertDialogAction>
                             </AlertDialogFooter>
                           </AlertDialogContent>
                         </AlertDialog>

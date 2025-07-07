@@ -43,13 +43,15 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { createClient, updateClient, deleteClient } from "../actions/database"
 
 interface ClientsManagerProps {
   clients: Client[]
   setClients: (clients: Client[]) => void
+  onDataChange: () => Promise<void>
 }
 
-export function ClientsManager({ clients, setClients }: ClientsManagerProps) {
+export function ClientsManager({ clients, setClients, onDataChange }: ClientsManagerProps) {
   const [isDialogOpen, setIsDialogOpen] = useState(false)
   const [editingClient, setEditingClient] = useState<Client | null>(null)
   const [searchTerm, setSearchTerm] = useState("")
@@ -99,50 +101,45 @@ export function ClientsManager({ clients, setClients }: ClientsManagerProps) {
     })
   }
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
-    if (editingClient) {
-      // Editar cliente existente
-      setClients(
-        clients.map((client) =>
-          client.id === editingClient.id
-            ? {
-                ...client,
-                name: formData.name,
-                email: formData.email,
-                phone: formData.phone,
-                address: formData.address,
-                dni: formData.dni,
-                fechaNacimiento: new Date(formData.fechaNacimiento),
-                vencimientoDni: formData.vencimientoDni ? new Date(formData.vencimientoDni) : undefined,
-                numeroPasaporte: formData.numeroPasaporte || undefined,
-                vencimientoPasaporte: formData.vencimientoPasaporte
-                  ? new Date(formData.vencimientoPasaporte)
-                  : undefined,
-              }
-            : client,
-        ),
-      )
-    } else {
-      // Crear nuevo cliente
-      const newClient: Client = {
-        id: Date.now().toString(),
-        name: formData.name,
-        email: formData.email,
-        phone: formData.phone,
-        address: formData.address,
-        dni: formData.dni,
-        fechaNacimiento: new Date(formData.fechaNacimiento),
-        vencimientoDni: formData.vencimientoDni ? new Date(formData.vencimientoDni) : undefined,
-        numeroPasaporte: formData.numeroPasaporte || undefined,
-        vencimientoPasaporte: formData.vencimientoPasaporte ? new Date(formData.vencimientoPasaporte) : undefined,
-        createdAt: new Date(),
+    try {
+      if (editingClient) {
+        // Editar cliente existente
+        await updateClient(editingClient.id, {
+          name: formData.name,
+          email: formData.email,
+          phone: formData.phone,
+          address: formData.address,
+          dni: formData.dni,
+          fechaNacimiento: new Date(formData.fechaNacimiento),
+          vencimientoDni: formData.vencimientoDni ? new Date(formData.vencimientoDni) : undefined,
+          numeroPasaporte: formData.numeroPasaporte || undefined,
+          vencimientoPasaporte: formData.vencimientoPasaporte ? new Date(formData.vencimientoPasaporte) : undefined,
+        })
+      } else {
+        // Crear nuevo cliente
+        await createClient({
+          name: formData.name,
+          email: formData.email,
+          phone: formData.phone,
+          address: formData.address,
+          dni: formData.dni,
+          fechaNacimiento: new Date(formData.fechaNacimiento),
+          vencimientoDni: formData.vencimientoDni ? new Date(formData.vencimientoDni) : undefined,
+          numeroPasaporte: formData.numeroPasaporte || undefined,
+          vencimientoPasaporte: formData.vencimientoPasaporte ? new Date(formData.vencimientoPasaporte) : undefined,
+        })
       }
-      setClients([...clients, newClient])
-    }
 
-    resetForm()
+      // Recargar datos
+      await onDataChange()
+      resetForm()
+    } catch (error) {
+      console.error("Error saving client:", error)
+      alert("Error al guardar el cliente. Por favor, intenta de nuevo.")
+    }
   }
 
   const resetForm = () => {
@@ -177,8 +174,14 @@ export function ClientsManager({ clients, setClients }: ClientsManagerProps) {
     setIsDialogOpen(true)
   }
 
-  const handleDelete = (clientId: string) => {
-    setClients(clients.filter((client) => client.id !== clientId))
+  const handleDelete = async (clientId: string) => {
+    try {
+      await deleteClient(clientId)
+      await onDataChange()
+    } catch (error) {
+      console.error("Error deleting client:", error)
+      alert("Error al eliminar el cliente. Por favor, intenta de nuevo.")
+    }
   }
 
   const calculateAge = (birthDate: Date) => {

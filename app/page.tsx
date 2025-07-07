@@ -23,18 +23,18 @@ import {
   authenticateUser,
 } from "./actions/database"
 
-// Tipos de datos
+// Tipos de datos (mantener los mismos que ya tienes)
 export interface Client {
   id: string
-  name: string // Apellido y Nombre
+  name: string
   email: string
   phone: string
   address: string
   dni: string
   fechaNacimiento: Date
-  vencimientoDni?: Date // Ahora es opcional
-  numeroPasaporte?: string // Opcional
-  vencimientoPasaporte?: Date // Opcional
+  vencimientoDni?: Date
+  numeroPasaporte?: string
+  vencimientoPasaporte?: Date
   createdAt: Date
 }
 

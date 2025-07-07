@@ -1,31 +1,5 @@
-import { createClient } from "@supabase/supabase-js"
+export type Json = string | number | boolean | null | { [key: string]: Json | undefined } | Json[]
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!
-
-// Cliente para el lado del cliente (con RLS habilitado)
-export const supabase = createClient(supabaseUrl, supabaseAnonKey)
-
-// Cliente para Server Actions (bypassa RLS)
-export const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey, {
-  auth: {
-    autoRefreshToken: false,
-    persistSession: false,
-  },
-})
-
-// Función helper para crear cliente del servidor
-export const createServerSupabaseClient = () => {
-  return createClient(supabaseUrl, supabaseServiceKey, {
-    auth: {
-      autoRefreshToken: false,
-      persistSession: false,
-    },
-  })
-}
-
-// Tipos de base de datos simplificados
 export interface Database {
   public: {
     Tables: {
@@ -39,6 +13,7 @@ export interface Database {
           role: "admin" | "manager" | "operator" | "readonly"
           is_active: boolean
           created_at: string
+          updated_at: string
         }
         Insert: {
           id?: string
@@ -49,6 +24,7 @@ export interface Database {
           role: "admin" | "manager" | "operator" | "readonly"
           is_active?: boolean
           created_at?: string
+          updated_at?: string
         }
         Update: {
           id?: string
@@ -58,7 +34,7 @@ export interface Database {
           email?: string
           role?: "admin" | "manager" | "operator" | "readonly"
           is_active?: boolean
-          created_at?: string
+          updated_at?: string
         }
       }
       clients: {
@@ -74,6 +50,7 @@ export interface Database {
           numero_pasaporte: string | null
           vencimiento_pasaporte: string | null
           created_at: string
+          updated_at: string
         }
         Insert: {
           id?: string
@@ -87,6 +64,7 @@ export interface Database {
           numero_pasaporte?: string | null
           vencimiento_pasaporte?: string | null
           created_at?: string
+          updated_at?: string
         }
         Update: {
           id?: string
@@ -99,7 +77,7 @@ export interface Database {
           vencimiento_dni?: string | null
           numero_pasaporte?: string | null
           vencimiento_pasaporte?: string | null
-          created_at?: string
+          updated_at?: string
         }
       }
       buses: {
@@ -110,6 +88,7 @@ export interface Database {
           tipo_servicio: string
           imagen_distribucion: string | null
           created_at: string
+          updated_at: string
         }
         Insert: {
           id?: string
@@ -118,6 +97,7 @@ export interface Database {
           tipo_servicio: string
           imagen_distribucion?: string | null
           created_at?: string
+          updated_at?: string
         }
         Update: {
           id?: string
@@ -125,7 +105,7 @@ export interface Database {
           asientos?: number
           tipo_servicio?: string
           imagen_distribucion?: string | null
-          created_at?: string
+          updated_at?: string
         }
       }
       trips: {
@@ -148,6 +128,7 @@ export interface Database {
           escalas: string | null
           archived: boolean
           created_at: string
+          updated_at: string
         }
         Insert: {
           id?: string
@@ -168,6 +149,7 @@ export interface Database {
           escalas?: string | null
           archived?: boolean
           created_at?: string
+          updated_at?: string
         }
         Update: {
           id?: string
@@ -187,7 +169,7 @@ export interface Database {
           clase?: string | null
           escalas?: string | null
           archived?: boolean
-          created_at?: string
+          updated_at?: string
         }
       }
       trip_passengers: {
@@ -199,6 +181,8 @@ export interface Database {
           pagado: boolean
           numero_asiento: number | null
           numero_cabina: string | null
+          created_at: string
+          updated_at: string
         }
         Insert: {
           id?: string
@@ -208,6 +192,8 @@ export interface Database {
           pagado?: boolean
           numero_asiento?: number | null
           numero_cabina?: string | null
+          created_at?: string
+          updated_at?: string
         }
         Update: {
           id?: string
@@ -217,6 +203,7 @@ export interface Database {
           pagado?: boolean
           numero_asiento?: number | null
           numero_cabina?: string | null
+          updated_at?: string
         }
       }
       payments: {
@@ -230,6 +217,8 @@ export interface Database {
           description: string
           date: string
           receipt_number: string | null
+          created_at: string
+          updated_at: string
         }
         Insert: {
           id?: string
@@ -241,6 +230,8 @@ export interface Database {
           description: string
           date?: string
           receipt_number?: string | null
+          created_at?: string
+          updated_at?: string
         }
         Update: {
           id?: string
@@ -252,8 +243,21 @@ export interface Database {
           description?: string
           date?: string
           receipt_number?: string | null
+          updated_at?: string
         }
       }
+    }
+    Views: {
+      [_ in never]: never
+    }
+    Functions: {
+      [_ in never]: never
+    }
+    Enums: {
+      user_role: "admin" | "manager" | "operator" | "readonly"
+      currency_type: "ARS" | "USD"
+      trip_type: "grupal" | "individual" | "crucero" | "aereo"
+      payment_type: "payment" | "charge"
     }
   }
 }
