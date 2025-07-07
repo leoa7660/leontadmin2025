@@ -1,5 +1,7 @@
 "use client"
 
+import type React from "react"
+
 import { useState } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
@@ -7,8 +9,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
 import type { Client, Trip, Payment, TripPassenger, Bus, User } from "../page"
-import { Receipt, Eye, Printer, DollarSign } from "lucide-react"
+import { Receipt, Eye, Printer, DollarSign, ArrowRightLeft } from "lucide-react"
 import {
   Dialog,
   DialogContent,
@@ -16,7 +20,10 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
+  DialogFooter,
 } from "@/components/ui/dialog"
+import { useToast } from "@/hooks/use-toast"
+import { createPayment, updatePayment } from "../actions/database"
 
 interface AccountsManagerProps {
   clients: Client[]
@@ -26,6 +33,7 @@ interface AccountsManagerProps {
   tripPassengers?: TripPassenger[]
   buses?: Bus[]
   currentUser: User
+  onDataChange?: () => Promise<void>
 }
 
 export function AccountsManager({
@@ -36,10 +44,17 @@ export function AccountsManager({
   tripPassengers = [],
   buses = [],
   currentUser,
+  onDataChange,
 }: AccountsManagerProps) {
+  const { toast } = useToast()
   const [selectedClientId, setSelectedClientId] = useState<string>("")
   const [selectedReceipt, setSelectedReceipt] = useState<Payment | null>(null)
   const [selectedCurrency, setSelectedCurrency] = useState<"ARS" | "USD">("ARS")
+  const [isTransferDialogOpen, setIsTransferDialogOpen] = useState(false)
+  const [selectedPaymentForTransfer, setSelectedPaymentForTransfer] = useState<Payment | null>(null)
+  const [transferToTripId, setTransferToTripId] = useState("")
+  const [transferAmount, setTransferAmount] = useState("")
+  const [isLoading, setIsLoading] = useState(false)
 
   // Función para formatear montos con moneda
   const formatCurrency = (amount: number, currency: "ARS" | "USD") => {
@@ -87,6 +102,7 @@ export function AccountsManager({
       currency: "ARS" | "USD"
       tripId?: string
       receiptNumber?: string
+      originalPayment?: Payment
     }> = []
 
     // Agregar cargos (viajes reservados) en la moneda especificada
@@ -124,10 +140,113 @@ export function AccountsManager({
         currency: payment.currency,
         tripId: payment.tripId,
         receiptNumber: payment.receiptNumber,
+        originalPayment: payment,
       })
     })
 
     return transactions.sort((a, b) => b.date.getTime() - a.date.getTime())
+  }
+
+  // Obtener viajes disponibles para transferir (del mismo cliente y moneda)
+  const getAvailableTripsForTransfer = (clientId: string, currency: "ARS" | "USD", excludeTripId?: string) => {
+    const clientPassengers = tripPassengers.filter((tp) => tp.clientId === clientId)
+    const clientTripIds = clientPassengers.map((tp) => tp.tripId)
+
+    return trips.filter(
+      (trip) =>
+        clientTripIds.includes(trip.id) && trip.currency === currency && trip.id !== excludeTripId && !trip.archived,
+    )
+  }
+
+  const handleTransferPayment = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!selectedPaymentForTransfer || !transferToTripId || !transferAmount) return
+
+    setIsLoading(true)
+
+    try {
+      const transferAmountNum = Number.parseFloat(transferAmount)
+      const originalPayment = selectedPaymentForTransfer
+
+      if (transferAmountNum > originalPayment.amount) {
+        toast({
+          title: "Error",
+          description: "El monto a transferir no puede ser mayor al monto del pago original",
+          variant: "destructive",
+        })
+        return
+      }
+
+      const targetTrip = trips.find((t) => t.id === transferToTripId)
+      if (!targetTrip) {
+        toast({
+          title: "Error",
+          description: "Viaje de destino no encontrado",
+          variant: "destructive",
+        })
+        return
+      }
+
+      // Si es transferencia parcial, actualizar el pago original
+      if (transferAmountNum < originalPayment.amount) {
+        await updatePayment(originalPayment.id, {
+          amount: originalPayment.amount - transferAmountNum,
+          description: `${originalPayment.description} (Transferencia parcial realizada)`,
+        })
+      } else {
+        // Si es transferencia total, actualizar el viaje del pago original
+        await updatePayment(originalPayment.id, {
+          tripId: transferToTripId,
+          description: `Pago transferido a ${targetTrip.destino}`,
+        })
+      }
+
+      // Si es transferencia parcial, crear un nuevo pago para el viaje destino
+      if (transferAmountNum < originalPayment.amount) {
+        const newPaymentData: Omit<Payment, "id" | "date"> = {
+          clientId: originalPayment.clientId,
+          tripId: transferToTripId,
+          amount: transferAmountNum,
+          currency: originalPayment.currency,
+          type: "payment",
+          description: `Transferencia desde ${trips.find((t) => t.id === originalPayment.tripId)?.destino || "viaje anterior"}`,
+          receiptNumber: `TRANS-${Date.now()}`,
+        }
+
+        await createPayment(newPaymentData)
+      }
+
+      toast({
+        title: "Transferencia realizada",
+        description: `Se transfirió ${formatCurrency(transferAmountNum, originalPayment.currency)} al viaje ${targetTrip.destino}`,
+      })
+
+      // Limpiar formulario y cerrar diálogo
+      setTransferAmount("")
+      setTransferToTripId("")
+      setSelectedPaymentForTransfer(null)
+      setIsTransferDialogOpen(false)
+
+      // Recargar datos
+      if (onDataChange) {
+        await onDataChange()
+      }
+    } catch (error) {
+      console.error("Error transferring payment:", error)
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Error al transferir el pago",
+        variant: "destructive",
+      })
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  const openTransferDialog = (payment: Payment) => {
+    setSelectedPaymentForTransfer(payment)
+    setTransferAmount(payment.amount.toString())
+    setIsTransferDialogOpen(true)
   }
 
   const generateReceipt = (payment: Payment) => {
@@ -490,6 +609,7 @@ export function AccountsManager({
                             <TableHead>Debe</TableHead>
                             <TableHead>Haber</TableHead>
                             <TableHead>Recibo</TableHead>
+                            <TableHead>Acciones</TableHead>
                           </TableRow>
                         </TableHeader>
                         <TableBody>
@@ -601,6 +721,19 @@ export function AccountsManager({
                                   </div>
                                 )}
                               </TableCell>
+                              <TableCell>
+                                {transaction.type === "payment" && transaction.originalPayment && (
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => openTransferDialog(transaction.originalPayment!)}
+                                    disabled={isLoading}
+                                  >
+                                    <ArrowRightLeft className="h-4 w-4 mr-1" />
+                                    Transferir
+                                  </Button>
+                                )}
+                              </TableCell>
                             </TableRow>
                           ))}
                         </TableBody>
@@ -669,6 +802,116 @@ export function AccountsManager({
           </Tabs>
         </CardContent>
       </Card>
+
+      {/* Diálogo para transferir pago */}
+      <Dialog open={isTransferDialogOpen} onOpenChange={setIsTransferDialogOpen}>
+        <DialogContent className="sm:max-w-[500px]">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <ArrowRightLeft className="h-5 w-5" />
+              Transferir Pago
+            </DialogTitle>
+            <DialogDescription>Transfiere todo o parte de este pago a otro viaje del mismo cliente</DialogDescription>
+          </DialogHeader>
+
+          {selectedPaymentForTransfer && (
+            <form onSubmit={handleTransferPayment}>
+              <div className="space-y-4 py-4">
+                <div className="p-4 bg-muted rounded-lg">
+                  <h4 className="font-semibold mb-2">Pago Original</h4>
+                  <div className="space-y-1 text-sm">
+                    <div className="flex justify-between">
+                      <span>Viaje:</span>
+                      <span>{trips.find((t) => t.id === selectedPaymentForTransfer.tripId)?.destino}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>Monto:</span>
+                      <span className="font-semibold">
+                        {formatCurrency(selectedPaymentForTransfer.amount, selectedPaymentForTransfer.currency)}
+                      </span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>Fecha:</span>
+                      <span>{selectedPaymentForTransfer.date.toLocaleDateString()}</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="grid gap-2">
+                  <Label htmlFor="transferToTrip">Transferir a viaje</Label>
+                  <Select value={transferToTripId} onValueChange={setTransferToTripId} required disabled={isLoading}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Seleccionar viaje destino" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {getAvailableTripsForTransfer(
+                        selectedPaymentForTransfer.clientId,
+                        selectedPaymentForTransfer.currency,
+                        selectedPaymentForTransfer.tripId,
+                      ).map((trip) => (
+                        <SelectItem key={trip.id} value={trip.id}>
+                          {trip.destino} - {trip.fechaSalida.toLocaleDateString()}(
+                          {formatCurrency(trip.importe, trip.currency)})
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="grid gap-2">
+                  <Label htmlFor="transferAmount">Monto a transferir</Label>
+                  <Input
+                    id="transferAmount"
+                    type="number"
+                    step="0.01"
+                    min="0.01"
+                    max={selectedPaymentForTransfer.amount}
+                    value={transferAmount}
+                    onChange={(e) => setTransferAmount(e.target.value)}
+                    required
+                    disabled={isLoading}
+                  />
+                  <div className="text-xs text-muted-foreground">
+                    Máximo: {formatCurrency(selectedPaymentForTransfer.amount, selectedPaymentForTransfer.currency)}
+                  </div>
+                </div>
+
+                {transferAmount && Number.parseFloat(transferAmount) < selectedPaymentForTransfer.amount && (
+                  <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+                    <p className="text-sm text-yellow-800">
+                      <strong>Transferencia parcial:</strong> Se creará un nuevo pago por{" "}
+                      {formatCurrency(Number.parseFloat(transferAmount), selectedPaymentForTransfer.currency)} en el
+                      viaje destino. El pago original quedará con{" "}
+                      {formatCurrency(
+                        selectedPaymentForTransfer.amount - Number.parseFloat(transferAmount),
+                        selectedPaymentForTransfer.currency,
+                      )}
+                      .
+                    </p>
+                  </div>
+                )}
+
+                {transferAmount && Number.parseFloat(transferAmount) === selectedPaymentForTransfer.amount && (
+                  <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                    <p className="text-sm text-blue-800">
+                      <strong>Transferencia total:</strong> El pago completo se moverá al viaje destino.
+                    </p>
+                  </div>
+                )}
+              </div>
+
+              <DialogFooter>
+                <Button type="button" variant="outline" onClick={() => setIsTransferDialogOpen(false)}>
+                  Cancelar
+                </Button>
+                <Button type="submit" disabled={isLoading || !transferToTripId || !transferAmount}>
+                  {isLoading ? "Transfiriendo..." : "Transferir Pago"}
+                </Button>
+              </DialogFooter>
+            </form>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
