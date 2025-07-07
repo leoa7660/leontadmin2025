@@ -54,6 +54,7 @@ export function AccountsManager({
   const [selectedPaymentForTransfer, setSelectedPaymentForTransfer] = useState<Payment | null>(null)
   const [transferToTripId, setTransferToTripId] = useState("")
   const [transferAmount, setTransferAmount] = useState("")
+  const [transferConcept, setTransferConcept] = useState("")
   const [isLoading, setIsLoading] = useState(false)
 
   // Función para formatear montos con moneda
@@ -191,13 +192,13 @@ export function AccountsManager({
       if (transferAmountNum < originalPayment.amount) {
         await updatePayment(originalPayment.id, {
           amount: originalPayment.amount - transferAmountNum,
-          description: `${originalPayment.description} (Transferencia parcial realizada)`,
+          description: `${originalPayment.description} (Transferencia parcial: ${transferConcept})`,
         })
       } else {
         // Si es transferencia total, actualizar el viaje del pago original
         await updatePayment(originalPayment.id, {
           tripId: transferToTripId,
-          description: `Pago transferido a ${targetTrip.destino}`,
+          description: `Transferido desde ${trips.find((t) => t.id === originalPayment.tripId)?.destino || "viaje anterior"} - Concepto: ${transferConcept}`,
         })
       }
 
@@ -209,7 +210,7 @@ export function AccountsManager({
           amount: transferAmountNum,
           currency: originalPayment.currency,
           type: "payment",
-          description: `Transferencia desde ${trips.find((t) => t.id === originalPayment.tripId)?.destino || "viaje anterior"}`,
+          description: `Transferencia desde ${trips.find((t) => t.id === originalPayment.tripId)?.destino || "viaje anterior"} - Concepto: ${transferConcept}`,
           receiptNumber: `TRANS-${Date.now()}`,
         }
 
@@ -224,6 +225,7 @@ export function AccountsManager({
       // Limpiar formulario y cerrar diálogo
       setTransferAmount("")
       setTransferToTripId("")
+      setTransferConcept("")
       setSelectedPaymentForTransfer(null)
       setIsTransferDialogOpen(false)
 
@@ -246,6 +248,7 @@ export function AccountsManager({
   const openTransferDialog = (payment: Payment) => {
     setSelectedPaymentForTransfer(payment)
     setTransferAmount(payment.amount.toString())
+    setTransferConcept("")
     setIsTransferDialogOpen(true)
   }
 
@@ -876,6 +879,22 @@ export function AccountsManager({
                   </div>
                 </div>
 
+                <div className="grid gap-2">
+                  <Label htmlFor="transferConcept">Concepto de la transferencia *</Label>
+                  <Input
+                    id="transferConcept"
+                    type="text"
+                    placeholder="Ej: Cambio de fecha, Cancelación, Reprogramación..."
+                    value={transferConcept}
+                    onChange={(e) => setTransferConcept(e.target.value)}
+                    required
+                    disabled={isLoading}
+                  />
+                  <div className="text-xs text-muted-foreground">
+                    Describe la razón de la transferencia para mantener un registro claro
+                  </div>
+                </div>
+
                 {transferAmount && Number.parseFloat(transferAmount) < selectedPaymentForTransfer.amount && (
                   <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
                     <p className="text-sm text-yellow-800">
@@ -904,7 +923,10 @@ export function AccountsManager({
                 <Button type="button" variant="outline" onClick={() => setIsTransferDialogOpen(false)}>
                   Cancelar
                 </Button>
-                <Button type="submit" disabled={isLoading || !transferToTripId || !transferAmount}>
+                <Button
+                  type="submit"
+                  disabled={isLoading || !transferToTripId || !transferAmount || !transferConcept.trim()}
+                >
                   {isLoading ? "Transfiriendo..." : "Transferir Pago"}
                 </Button>
               </DialogFooter>
