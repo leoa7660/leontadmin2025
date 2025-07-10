@@ -525,32 +525,114 @@ export function TripsManager({
         <head>
           <title>Recibo de Pago - ${payment.receiptNumber}</title>
           <style>
-            body { font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; }
-            .header { text-align: center; border-bottom: 2px solid #333; padding-bottom: 20px; margin-bottom: 20px; }
-            .logo-section { display: flex; align-items: center; justify-content: center; gap: 15px; margin-bottom: 15px; }
-            .logo { width: 60px; height: 60px; border-radius: 50%; }
-            .company-info { text-align: center; margin-bottom: 15px; }
-            .company-name { font-size: 24px; font-weight: bold; color: #2563eb; margin: 0; }
-            .company-subtitle { font-size: 14px; color: #666; margin: 0; }
-            .receipt-title { font-size: 18px; margin-top: 15px; font-weight: bold; }
-            .receipt-number { font-size: 14px; color: #666; }
-            .section { margin: 20px 0; }
-            .section-title { font-weight: bold; font-size: 16px; margin-bottom: 10px; border-bottom: 1px solid #ddd; padding-bottom: 5px; }
-            .info-row { display: flex; justify-content: space-between; margin: 8px 0; }
-            .info-label { font-weight: bold; }
-            .total-section { background-color: #f8f9fa; padding: 15px; border-radius: 5px; margin-top: 20px; }
-            .total-amount { font-size: 20px; font-weight: bold; color: #2563eb; }
-            .footer { text-align: center; margin-top: 30px; padding-top: 20px; border-top: 1px solid #ddd; color: #666; font-size: 12px; }
-            @media print {
-              body { margin: 0; }
+            body { 
+              font-family: Arial, sans-serif; 
+              max-width: 600px; 
+              margin: 0 auto; 
+              padding: 20px; 
+              color: #333;
+            }
+            .header { 
+              text-align: center; 
+              border-bottom: 2px solid #333; 
+              padding-bottom: 20px; 
+              margin-bottom: 20px; 
+            }
+            .logo-section { 
+              display: flex; 
+              align-items: center; 
+              justify-content: center; 
+              gap: 15px; 
+              margin-bottom: 15px; 
+            }
+            .company-info { 
+              text-align: center; 
+              margin-bottom: 15px; 
+            }
+            .company-name { 
+              font-size: 24px; 
+              font-weight: bold; 
+              color: #2563eb; 
+              margin: 0; 
+            }
+            .company-subtitle { 
+              font-size: 14px; 
+              color: #666; 
+              margin: 0; 
+            }
+            .receipt-title { 
+              font-size: 18px; 
+              margin-top: 15px; 
+              font-weight: bold; 
+            }
+            .receipt-number { 
+              font-size: 14px; 
+              color: #666; 
+            }
+            .section { 
+              margin: 20px 0; 
+            }
+            .section-title { 
+              font-weight: bold; 
+              font-size: 16px; 
+              margin-bottom: 10px; 
+              border-bottom: 1px solid #ddd; 
+              padding-bottom: 5px; 
+            }
+            .info-row { 
+              display: flex; 
+              justify-content: space-between; 
+              margin: 8px 0; 
+            }
+            .info-label { 
+              font-weight: bold; 
+            }
+            .total-section { 
+              background-color: #f8f9fa; 
+              padding: 15px; 
+              border-radius: 5px; 
+              margin-top: 20px; 
+            }
+            .total-amount { 
+              font-size: 20px; 
+              font-weight: bold; 
+              color: #2563eb; 
+            }
+            .footer { 
+              text-align: center; 
+              margin-top: 30px; 
+              padding-top: 20px; 
+              border-top: 1px solid #ddd; 
+              color: #666; 
+              font-size: 12px; 
+            }
+            .logo-placeholder {
+              width: 60px;
+              height: 60px;
+              border-radius: 50%;
+              background: linear-gradient(135deg, #2563eb, #3b82f6);
+              display: flex;
+              align-items: center;
+              justify-content: center;
+              color: white;
+              font-weight: bold;
+              font-size: 18px;
+              margin: 0 auto;
+            }
+            @media print { 
+              body { margin: 0; } 
               .no-print { display: none; }
+              .logo-placeholder { 
+                -webkit-print-color-adjust: exact;
+                color-adjust: exact;
+              }
             }
           </style>
         </head>
         <body>
           <div class="header">
             <div class="logo-section">
-              <img src="/logo.jfif" alt="LT Tour Operator Logo" class="logo" />
+              <div class="logo-placeholder">LT</div>
               <div class="company-info">
                 <h1 class="company-name">LT Tour Operator</h1>
                 <p class="company-subtitle">Tu compañía de confianza para viajar</p>
@@ -694,38 +776,158 @@ export function TripsManager({
       <head>
         <title>Voucher de ${getTripTypeLabel(trip.type)} - ${trip.destino}</title>
         <style>
-          body { font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; }
-          .header { text-align: center; border-bottom: 2px solid #333; padding-bottom: 20px; margin-bottom: 20px; }
-          .logo-section { display: flex; align-items: center; justify-content: center; gap: 15px; margin-bottom: 15px; }
-          .logo { width: 60px; height: 60px; border-radius: 50%; }
-          .company-info { text-align: center; margin-bottom: 15px; }
-          .company-name { font-size: 24px; font-weight: bold; color: #2563eb; margin: 0; }
-          .company-subtitle { font-size: 14px; color: #666; margin: 0; }
-          .voucher-title { font-size: 20px; margin-top: 15px; font-weight: bold; color: #2563eb; }
-          .destination { font-size: 16px; color: #666; margin-top: 5px; }
-          .section { margin: 20px 0; }
-          .section-title { font-weight: bold; font-size: 16px; margin-bottom: 10px; border-bottom: 1px solid #ddd; padding-bottom: 5px; color: #2563eb; }
-          .info-row { display: flex; justify-content: space-between; margin: 8px 0; }
-          .info-label { font-weight: bold; }
-          .highlight-section { background-color: #f0f8ff; padding: 15px; border-radius: 5px; margin: 20px 0; border-left: 4px solid #2563eb; }
-          .departure-info { background-color: #fff3cd; padding: 15px; border-radius: 5px; margin: 20px 0; border-left: 4px solid #ffc107; }
-          .departure-time { font-size: 24px; font-weight: bold; color: #856404; text-align: center; }
-          .departure-date { font-size: 18px; font-weight: bold; color: #856404; text-align: center; margin-bottom: 10px; }
-          .seat-info { background-color: #d1ecf1; padding: 15px; border-radius: 5px; margin: 20px 0; border-left: 4px solid #17a2b8; text-align: center; }
-          .seat-number { font-size: 28px; font-weight: bold; color: #0c5460; }
-          .footer { text-align: center; margin-top: 30px; padding-top: 20px; border-top: 1px solid #ddd; color: #666; font-size: 12px; }
-          .important-note { background-color: #f8d7da; padding: 10px; border-radius: 5px; margin: 20px 0; border-left: 4px solid #dc3545; }
-          .important-note p { margin: 5px 0; color: #721c24; font-weight: bold; }
+          body { 
+            font-family: Arial, sans-serif; 
+            max-width: 600px; 
+            margin: 0 auto; 
+            padding: 20px; 
+            color: #333;
+          }
+          .header { 
+            text-align: center; 
+            border-bottom: 2px solid #333; 
+            padding-bottom: 20px; 
+            margin-bottom: 20px; 
+          }
+          .logo-section { 
+            display: flex; 
+            align-items: center; 
+            justify-content: center; 
+            gap: 15px; 
+            margin-bottom: 15px; 
+          }
+          .company-info { 
+            text-align: center; 
+            margin-bottom: 15px; 
+          }
+          .company-name { 
+            font-size: 24px; 
+            font-weight: bold; 
+            color: #2563eb; 
+            margin: 0; 
+          }
+          .company-subtitle { 
+            font-size: 14px; 
+            color: #666; 
+            margin: 0; 
+          }
+          .voucher-title { 
+            font-size: 20px; 
+            margin-top: 15px; 
+            font-weight: bold; 
+            color: #2563eb; 
+          }
+          .destination { 
+            font-size: 16px; 
+            color: #666; 
+            margin-top: 5px; 
+          }
+          .section { 
+            margin: 20px 0; 
+          }
+          .section-title { 
+            font-weight: bold; 
+            font-size: 16px; 
+            margin-bottom: 10px; 
+            border-bottom: 1px solid #ddd; 
+            padding-bottom: 5px; 
+            color: #2563eb; 
+          }
+          .info-row { 
+            display: flex; 
+            justify-content: space-between; 
+            margin: 8px 0; 
+          }
+          .info-label { 
+            font-weight: bold; 
+          }
+          .highlight-section { 
+            background-color: #f0f8ff; 
+            padding: 15px; 
+            border-radius: 5px; 
+            margin: 20px 0; 
+            border-left: 4px solid #2563eb; 
+          }
+          .departure-info { 
+            background-color: #fff3cd; 
+            padding: 15px; 
+            border-radius: 5px; 
+            margin: 20px 0; 
+            border-left: 4px solid #ffc107; 
+          }
+          .departure-time { 
+            font-size: 24px; 
+            font-weight: bold; 
+            color: #856404; 
+            text-align: center; 
+          }
+          .departure-date { 
+            font-size: 18px; 
+            font-weight: bold; 
+            color: #856404; 
+            text-align: center; 
+            margin-bottom: 10px; 
+          }
+          .seat-info { 
+            background-color: #d1ecf1; 
+            padding: 15px; 
+            border-radius: 5px; 
+            margin: 20px 0; 
+            border-left: 4px solid #17a2b8; 
+            text-align: center; 
+          }
+          .seat-number { 
+            font-size: 28px; 
+            font-weight: bold; 
+            color: #0c5460; 
+          }
+          .footer { 
+            text-align: center; 
+            margin-top: 30px; 
+            padding-top: 20px; 
+            border-top: 1px solid #ddd; 
+            color: #666; 
+            font-size: 12px; 
+          }
+          .important-note { 
+            background-color: #f8d7da; 
+            padding: 10px; 
+            border-radius: 5px; 
+            margin: 20px 0; 
+            border-left: 4px solid #dc3545; 
+          }
+          .important-note p { 
+            margin: 5px 0; 
+            color: #721c24; 
+            font-weight: bold; 
+          }
+          .logo-placeholder {
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #2563eb, #3b82f6);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: bold;
+            font-size: 18px;
+            margin: 0 auto;
+          }
           @media print {
             body { margin: 0; }
             .no-print { display: none; }
+            .logo-placeholder { 
+              -webkit-print-color-adjust: exact;
+              color-adjust: exact;
+            }
           }
         </style>
       </head>
       <body>
         <div class="header">
           <div class="logo-section">
-            <img src="/logo.jfif" alt="LT Tour Operator Logo" class="logo" />
+            <div class="logo-placeholder">LT</div>
             <div class="company-info">
               <h1 class="company-name">LT Tour Operator</h1>
               <p class="company-subtitle">Tu compañía de confianza para viajar</p>
@@ -1466,13 +1668,14 @@ export function TripsManager({
                       </div>
                     </div>
 
-                    {/* IMPORTE Y MONEDA - QUINTO */}
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {/*IMPORTE Y MONEDA - QUINTO */}
+                    <div className="grid grid-cols-2 gap-4">
                       <div className="grid gap-2">
-                        <Label htmlFor="importe">Importe</Label>
+                        <Label htmlFor="importe">Importe por persona</Label>
                         <Input
                           id="importe"
                           type="number"
+                          step="0.01"
                           value={formData.importe}
                           onChange={(e) => setFormData({ ...formData, importe: e.target.value })}
                           required
@@ -1488,375 +1691,130 @@ export function TripsManager({
                           disabled={isLoading}
                         >
                           <SelectTrigger>
-                            <SelectValue placeholder="Seleccionar moneda" />
+                            <SelectValue />
                           </SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="ARS">ARS</SelectItem>
-                            <SelectItem value="USD">USD</SelectItem>
+                            <SelectItem value="ARS">🇦🇷 Pesos Argentinos</SelectItem>
+                            <SelectItem value="USD">🇺🇸 Dólares Americanos</SelectItem>
                           </SelectContent>
                         </Select>
                       </div>
                     </div>
 
-                    {/* CRUCERO - CAMPOS ADICIONALES */}
+                    {/* CAMPOS ESPECÍFICOS PARA CRUCEROS */}
                     {formData.type === "crucero" && (
                       <>
-                        <div className="grid gap-2">
-                          <Label htmlFor="naviera">Naviera</Label>
-                          <Input
-                            id="naviera"
-                            type="text"
-                            value={formData.naviera}
-                            onChange={(e) => setFormData({ ...formData, naviera: e.target.value })}
-                            disabled={isLoading}
-                          />
-                        </div>
-                        <div className="grid gap-2">
-                          <Label htmlFor="barco">Barco</Label>
-                          <Input
-                            id="barco"
-                            type="text"
-                            value={formData.barco}
-                            onChange={(e) => setFormData({ ...formData, barco: e.target.value })}
-                            disabled={isLoading}
-                          />
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <div className="grid gap-2">
+                            <Label htmlFor="naviera">Naviera</Label>
+                            <Input
+                              id="naviera"
+                              value={formData.naviera}
+                              onChange={(e) => setFormData({ ...formData, naviera: e.target.value })}
+                              placeholder="Ej: MSC, Royal Caribbean"
+                              disabled={isLoading}
+                            />
+                          </div>
+                          <div className="grid gap-2">
+                            <Label htmlFor="barco">Nombre del Barco</Label>
+                            <Input
+                              id="barco"
+                              value={formData.barco}
+                              onChange={(e) => setFormData({ ...formData, barco: e.target.value })}
+                              placeholder="Ej: MSC Seaside"
+                              disabled={isLoading}
+                            />
+                          </div>
                         </div>
                         <div className="grid gap-2">
                           <Label htmlFor="cabina">Tipo de Cabina</Label>
                           <Input
                             id="cabina"
-                            type="text"
                             value={formData.cabina}
                             onChange={(e) => setFormData({ ...formData, cabina: e.target.value })}
+                            placeholder="Ej: Interior, Balcón, Suite"
                             disabled={isLoading}
                           />
                         </div>
                       </>
                     )}
 
-                    {/* AEREO - CAMPOS ADICIONALES */}
+                    {/* CAMPOS ESPECÍFICOS PARA AÉREOS */}
                     {formData.type === "aereo" && (
                       <>
-                        <div className="grid gap-2">
-                          <Label htmlFor="aerolinea">Aerolínea</Label>
-                          <Input
-                            id="aerolinea"
-                            type="text"
-                            value={formData.aerolinea}
-                            onChange={(e) => setFormData({ ...formData, aerolinea: e.target.value })}
-                            disabled={isLoading}
-                          />
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <div className="grid gap-2">
+                            <Label htmlFor="aerolinea">Aerolínea</Label>
+                            <Input
+                              id="aerolinea"
+                              value={formData.aerolinea}
+                              onChange={(e) => setFormData({ ...formData, aerolinea: e.target.value })}
+                              placeholder="Ej: Aerolíneas Argentinas"
+                              disabled={isLoading}
+                            />
+                          </div>
+                          <div className="grid gap-2">
+                            <Label htmlFor="numeroVuelo">Número de Vuelo</Label>
+                            <Input
+                              id="numeroVuelo"
+                              value={formData.numeroVuelo}
+                              onChange={(e) => setFormData({ ...formData, numeroVuelo: e.target.value })}
+                              placeholder="Ej: AR1234"
+                              disabled={isLoading}
+                            />
+                          </div>
                         </div>
-                        <div className="grid gap-2">
-                          <Label htmlFor="numeroVuelo">Número de Vuelo</Label>
-                          <Input
-                            id="numeroVuelo"
-                            type="text"
-                            value={formData.numeroVuelo}
-                            onChange={(e) => setFormData({ ...formData, numeroVuelo: e.target.value })}
-                            disabled={isLoading}
-                          />
-                        </div>
-                        <div className="grid gap-2">
-                          <Label htmlFor="clase">Clase</Label>
-                          <Input
-                            id="clase"
-                            type="text"
-                            value={formData.clase}
-                            onChange={(e) => setFormData({ ...formData, clase: e.target.value })}
-                            disabled={isLoading}
-                          />
-                        </div>
-                        <div className="grid gap-2">
-                          <Label htmlFor="escalas">Escalas</Label>
-                          <Input
-                            id="escalas"
-                            type="text"
-                            value={formData.escalas}
-                            onChange={(e) => setFormData({ ...formData, escalas: e.target.value })}
-                            disabled={isLoading}
-                          />
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <div className="grid gap-2">
+                            <Label htmlFor="clase">Clase</Label>
+                            <Select
+                              value={formData.clase}
+                              onValueChange={(value) => setFormData({ ...formData, clase: value })}
+                              disabled={isLoading}
+                            >
+                              <SelectTrigger>
+                                <SelectValue placeholder="Seleccionar clase" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="economica">Económica</SelectItem>
+                                <SelectItem value="premium">Premium Economy</SelectItem>
+                                <SelectItem value="business">Business</SelectItem>
+                                <SelectItem value="primera">Primera Clase</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+                          <div className="grid gap-2">
+                            <Label htmlFor="escalas">Escalas (opcional)</Label>
+                            <Input
+                              id="escalas"
+                              value={formData.escalas}
+                              onChange={(e) => setFormData({ ...formData, escalas: e.target.value })}
+                              placeholder="Ej: 1 escala en Lima"
+                              disabled={isLoading}
+                            />
+                          </div>
                         </div>
                       </>
                     )}
 
-                    {/* DESCRIPCION - ULTIMO */}
+                    {/* DESCRIPCIÓN - ÚLTIMO */}
                     <div className="grid gap-2">
-                      <Label htmlFor="descripcion">Descripción</Label>
+                      <Label htmlFor="descripcion">Descripción / Incluye</Label>
                       <Textarea
                         id="descripcion"
                         value={formData.descripcion}
                         onChange={(e) => setFormData({ ...formData, descripcion: e.target.value })}
-                        rows={3}
+                        placeholder="Describe qué incluye el viaje..."
                         disabled={isLoading}
                       />
                     </div>
                   </div>
                   <DialogFooter>
-                    <Button type="submit" disabled={isLoading}>
-                      {isLoading ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : "Crear Viaje"}
-                    </Button>
-                  </DialogFooter>
-                </form>
-              </DialogContent>
-            </Dialog>
-            {/* DIALOGO PARA EDITAR VIAJE */}
-            <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-              <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
-                <DialogHeader>
-                  <DialogTitle>Editar Viaje</DialogTitle>
-                  <DialogDescription>Modifica los datos del viaje seleccionado</DialogDescription>
-                </DialogHeader>
-                <form onSubmit={handleEditSubmit}>
-                  <div className="grid gap-4 py-4">
-                    {/* TIPO DE VIAJE - PRIMERO */}
-                    <div className="grid gap-2">
-                      <Label htmlFor="edit-type">Tipo de Viaje</Label>
-                      <Select
-                        value={formData.type}
-                        onValueChange={(value) => setFormData({ ...formData, type: value, busId: "" })}
-                        required
-                        disabled={isLoading}
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Seleccionar tipo" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="grupal">
-                            <div className="flex items-center gap-2">
-                              <Users className="h-4 w-4" />
-                              <div>
-                                <div className="font-medium">Salida Grupal</div>
-                                <div className="text-xs text-muted-foreground">Requiere bus - Múltiples pasajeros</div>
-                              </div>
-                            </div>
-                          </SelectItem>
-                          <SelectItem value="individual">
-                            <div className="flex items-center gap-2">
-                              <Car className="h-4 w-4" />
-                              <div>
-                                <div className="font-medium">Salida Individual</div>
-                                <div className="text-xs text-muted-foreground">Sin bus - Servicio personalizado</div>
-                              </div>
-                            </div>
-                          </SelectItem>
-                          <SelectItem value="crucero">
-                            <div className="flex items-center gap-2">
-                              <Ship className="h-4 w-4" />
-                              <div>
-                                <div className="font-medium">Crucero</div>
-                                <div className="text-xs text-muted-foreground">Viaje en barco - Cabinas</div>
-                              </div>
-                            </div>
-                          </SelectItem>
-                          <SelectItem value="aereo">
-                            <div className="flex items-center gap-2">
-                              <Plane className="h-4 w-4" />
-                              <div>
-                                <div className="font-medium">Aéreo</div>
-                                <div className="text-xs text-muted-foreground">Viaje en avión - Asientos</div>
-                              </div>
-                            </div>
-                          </SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-
-                    {/* BUS - SEGUNDO (SOLO SI ES GRUPAL) */}
-                    {formData.type === "grupal" && (
-                      <div className="grid gap-2">
-                        <Label htmlFor="edit-busId">Bus</Label>
-                        <Select
-                          value={formData.busId}
-                          onValueChange={(value) => setFormData({ ...formData, busId: value })}
-                          required
-                          disabled={isLoading}
-                        >
-                          <SelectTrigger>
-                            <SelectValue placeholder="Seleccionar bus" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {buses.map((bus) => (
-                              <SelectItem key={bus.id} value={bus.id}>
-                                {bus.patente} - {bus.tipoServicio} ({bus.asientos} asientos)
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-                    )}
-
-                    {/* DESTINO - TERCERO */}
-                    <div className="grid gap-2">
-                      <Label htmlFor="edit-destino">Destino</Label>
-                      <Input
-                        id="edit-destino"
-                        value={formData.destino}
-                        onChange={(e) => setFormData({ ...formData, destino: e.target.value })}
-                        type="text"
-                        required
-                        disabled={isLoading}
-                      />
-                    </div>
-
-                    {/* FECHAS - CUARTO */}
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div className="grid gap-2">
-                        <Label htmlFor="edit-fechaSalida">Fecha de Salida</Label>
-                        <Input
-                          id="edit-fechaSalida"
-                          type="datetime-local"
-                          value={formData.fechaSalida}
-                          onChange={(e) => setFormData({ ...formData, fechaSalida: e.target.value })}
-                          required
-                          disabled={isLoading}
-                        />
-                      </div>
-                      <div className="grid gap-2">
-                        <Label htmlFor="edit-fechaRegreso">Fecha de Regreso</Label>
-                        <Input
-                          id="edit-fechaRegreso"
-                          type="datetime-local"
-                          value={formData.fechaRegreso}
-                          onChange={(e) => setFormData({ ...formData, fechaRegreso: e.target.value })}
-                          required
-                          disabled={isLoading}
-                        />
-                      </div>
-                    </div>
-
-                    {/* IMPORTE Y MONEDA - QUINTO */}
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div className="grid gap-2">
-                        <Label htmlFor="edit-importe">Importe</Label>
-                        <Input
-                          id="edit-importe"
-                          type="number"
-                          value={formData.importe}
-                          onChange={(e) => setFormData({ ...formData, importe: e.target.value })}
-                          required
-                          disabled={isLoading}
-                        />
-                      </div>
-                      <div className="grid gap-2">
-                        <Label htmlFor="edit-currency">Moneda</Label>
-                        <Select
-                          value={formData.currency}
-                          onValueChange={(value) => setFormData({ ...formData, currency: value })}
-                          required
-                          disabled={isLoading}
-                        >
-                          <SelectTrigger>
-                            <SelectValue placeholder="Seleccionar moneda" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="ARS">ARS</SelectItem>
-                            <SelectItem value="USD">USD</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-                    </div>
-
-                    {/* CRUCERO - CAMPOS ADICIONALES */}
-                    {formData.type === "crucero" && (
-                      <>
-                        <div className="grid gap-2">
-                          <Label htmlFor="edit-naviera">Naviera</Label>
-                          <Input
-                            id="edit-naviera"
-                            type="text"
-                            value={formData.naviera}
-                            onChange={(e) => setFormData({ ...formData, naviera: e.target.value })}
-                            disabled={isLoading}
-                          />
-                        </div>
-                        <div className="grid gap-2">
-                          <Label htmlFor="edit-barco">Barco</Label>
-                          <Input
-                            id="edit-barco"
-                            type="text"
-                            value={formData.barco}
-                            onChange={(e) => setFormData({ ...formData, barco: e.target.value })}
-                            disabled={isLoading}
-                          />
-                        </div>
-                        <div className="grid gap-2">
-                          <Label htmlFor="edit-cabina">Tipo de Cabina</Label>
-                          <Input
-                            id="edit-cabina"
-                            type="text"
-                            value={formData.cabina}
-                            onChange={(e) => setFormData({ ...formData, cabina: e.target.value })}
-                            disabled={isLoading}
-                          />
-                        </div>
-                      </>
-                    )}
-
-                    {/* AEREO - CAMPOS ADICIONALES */}
-                    {formData.type === "aereo" && (
-                      <>
-                        <div className="grid gap-2">
-                          <Label htmlFor="edit-aerolinea">Aerolínea</Label>
-                          <Input
-                            id="edit-aerolinea"
-                            type="text"
-                            value={formData.aerolinea}
-                            onChange={(e) => setFormData({ ...formData, aerolinea: e.target.value })}
-                            disabled={isLoading}
-                          />
-                        </div>
-                        <div className="grid gap-2">
-                          <Label htmlFor="edit-numeroVuelo">Número de Vuelo</Label>
-                          <Input
-                            id="edit-numeroVuelo"
-                            type="text"
-                            value={formData.numeroVuelo}
-                            onChange={(e) => setFormData({ ...formData, numeroVuelo: e.target.value })}
-                            disabled={isLoading}
-                          />
-                        </div>
-                        <div className="grid gap-2">
-                          <Label htmlFor="edit-clase">Clase</Label>
-                          <Input
-                            id="edit-clase"
-                            type="text"
-                            value={formData.clase}
-                            onChange={(e) => setFormData({ ...formData, clase: e.target.value })}
-                            disabled={isLoading}
-                          />
-                        </div>
-                        <div className="grid gap-2">
-                          <Label htmlFor="edit-escalas">Escalas</Label>
-                          <Input
-                            id="edit-escalas"
-                            type="text"
-                            value={formData.escalas}
-                            onChange={(e) => setFormData({ ...formData, escalas: e.target.value })}
-                            disabled={isLoading}
-                          />
-                        </div>
-                      </>
-                    )}
-
-                    {/* DESCRIPCION - ULTIMO */}
-                    <div className="grid gap-2">
-                      <Label htmlFor="edit-descripcion">Descripción</Label>
-                      <Textarea
-                        id="edit-descripcion"
-                        value={formData.descripcion}
-                        onChange={(e) => setFormData({ ...formData, descripcion: e.target.value })}
-                        rows={3}
-                        disabled={isLoading}
-                      />
-                    </div>
-                  </div>
-                  <DialogFooter>
-                    <Button type="button" variant="outline" onClick={resetEditForm} disabled={isLoading}>
+                    <Button type="button" variant="outline" onClick={resetForm} disabled={isLoading}>
                       Cancelar
                     </Button>
                     <Button type="submit" disabled={isLoading}>
-                      {isLoading ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : "Actualizar Viaje"}
+                      {isLoading ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : "Crear Viaje"}
                     </Button>
                   </DialogFooter>
                 </form>
@@ -1865,69 +1823,380 @@ export function TripsManager({
           </div>
         </CardHeader>
         <CardContent>
-          <Tabs defaultValue="grupal" className="space-y-4">
-            <TabsList>
-              <TabsTrigger value="grupal" onClick={() => setActiveTab("grupal")}>
-                Salidas Grupales
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
+            <TabsList className="grid w-full grid-cols-5">
+              <TabsTrigger value="grupal" className="flex items-center gap-2">
+                <Users className="h-4 w-4" />
+                Grupales ({grupalTrips.length})
               </TabsTrigger>
-              <TabsTrigger value="individual" onClick={() => setActiveTab("individual")}>
-                Salidas Individuales
+              <TabsTrigger value="individual" className="flex items-center gap-2">
+                <Car className="h-4 w-4" />
+                Individuales ({individualTrips.length})
               </TabsTrigger>
-              <TabsTrigger value="crucero" onClick={() => setActiveTab("crucero")}>
-                Cruceros
+              <TabsTrigger value="crucero" className="flex items-center gap-2">
+                <Ship className="h-4 w-4" />
+                Cruceros ({cruceroTrips.length})
               </TabsTrigger>
-              <TabsTrigger value="aereo" onClick={() => setActiveTab("aereo")}>
-                Aéreos
+              <TabsTrigger value="aereo" className="flex items-center gap-2">
+                <Plane className="h-4 w-4" />
+                Aéreos ({aereoTrips.length})
               </TabsTrigger>
-              <TabsTrigger value="archived" onClick={() => setActiveTab("archived")}>
-                Archivados
+              <TabsTrigger value="archived" className="flex items-center gap-2">
+                <Archive className="h-4 w-4" />
+                Archivados ({archivedTrips.length})
               </TabsTrigger>
             </TabsList>
 
             <TabsContent value="grupal">
-              {renderTripGrid(grupalTrips, "No hay salidas grupales disponibles.")}
+              {renderTripGrid(grupalTrips, "No hay viajes grupales disponibles")}
             </TabsContent>
+
             <TabsContent value="individual">
-              {renderTripGrid(individualTrips, "No hay salidas individuales disponibles.")}
+              {renderTripGrid(individualTrips, "No hay viajes individuales disponibles")}
             </TabsContent>
-            <TabsContent value="crucero">{renderTripGrid(cruceroTrips, "No hay cruceros disponibles.")}</TabsContent>
-            <TabsContent value="aereo">{renderTripGrid(aereoTrips, "No hay vuelos disponibles.")}</TabsContent>
-            <TabsContent value="archived">{renderTripGrid(archivedTrips, "No hay viajes archivados.")}</TabsContent>
+
+            <TabsContent value="crucero">{renderTripGrid(cruceroTrips, "No hay cruceros disponibles")}</TabsContent>
+
+            <TabsContent value="aereo">{renderTripGrid(aereoTrips, "No hay vuelos disponibles")}</TabsContent>
+
+            <TabsContent value="archived">{renderTripGrid(archivedTrips, "No hay viajes archivados")}</TabsContent>
           </Tabs>
         </CardContent>
       </Card>
 
+      {/* DIALOGO PARA EDITAR VIAJE */}
+      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+        <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Editar Viaje</DialogTitle>
+            <DialogDescription>Modifica los detalles del viaje</DialogDescription>
+          </DialogHeader>
+          <form onSubmit={handleEditSubmit}>
+            <div className="grid gap-4 py-4">
+              {/* TIPO DE VIAJE - PRIMERO */}
+              <div className="grid gap-2">
+                <Label htmlFor="edit-type">Tipo de Viaje</Label>
+                <Select
+                  value={formData.type}
+                  onValueChange={(value) => setFormData({ ...formData, type: value, busId: "" })}
+                  required
+                  disabled={isLoading}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Seleccionar tipo" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="grupal">
+                      <div className="flex items-center gap-2">
+                        <Users className="h-4 w-4" />
+                        <div>
+                          <div className="font-medium">Salida Grupal</div>
+                          <div className="text-xs text-muted-foreground">Requiere bus - Múltiples pasajeros</div>
+                        </div>
+                      </div>
+                    </SelectItem>
+                    <SelectItem value="individual">
+                      <div className="flex items-center gap-2">
+                        <Car className="h-4 w-4" />
+                        <div>
+                          <div className="font-medium">Salida Individual</div>
+                          <div className="text-xs text-muted-foreground">Sin bus - Servicio personalizado</div>
+                        </div>
+                      </div>
+                    </SelectItem>
+                    <SelectItem value="crucero">
+                      <div className="flex items-center gap-2">
+                        <Ship className="h-4 w-4" />
+                        <div>
+                          <div className="font-medium">Crucero</div>
+                          <div className="text-xs text-muted-foreground">Viaje en barco - Cabinas</div>
+                        </div>
+                      </div>
+                    </SelectItem>
+                    <SelectItem value="aereo">
+                      <div className="flex items-center gap-2">
+                        <Plane className="h-4 w-4" />
+                        <div>
+                          <div className="font-medium">Aéreo</div>
+                          <div className="text-xs text-muted-foreground">Viaje en avión - Asientos</div>
+                        </div>
+                      </div>
+                    </SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* BUS - SEGUNDO (SOLO SI ES GRUPAL) */}
+              {formData.type === "grupal" && (
+                <div className="grid gap-2">
+                  <Label htmlFor="edit-busId">Bus</Label>
+                  <Select
+                    value={formData.busId}
+                    onValueChange={(value) => setFormData({ ...formData, busId: value })}
+                    required
+                    disabled={isLoading}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Seleccionar bus" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {buses.map((bus) => (
+                        <SelectItem key={bus.id} value={bus.id}>
+                          {bus.patente} - {bus.tipoServicio} ({bus.asientos} asientos)
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
+
+              {/* DESTINO - TERCERO */}
+              <div className="grid gap-2">
+                <Label htmlFor="edit-destino">Destino</Label>
+                <Input
+                  id="edit-destino"
+                  value={formData.destino}
+                  onChange={(e) => setFormData({ ...formData, destino: e.target.value })}
+                  type="text"
+                  required
+                  disabled={isLoading}
+                />
+              </div>
+
+              {/* FECHAS - CUARTO */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="grid gap-2">
+                  <Label htmlFor="edit-fechaSalida">Fecha de Salida</Label>
+                  <Input
+                    id="edit-fechaSalida"
+                    type="datetime-local"
+                    value={formData.fechaSalida}
+                    onChange={(e) => setFormData({ ...formData, fechaSalida: e.target.value })}
+                    required
+                    disabled={isLoading}
+                  />
+                </div>
+                <div className="grid gap-2">
+                  <Label htmlFor="edit-fechaRegreso">Fecha de Regreso</Label>
+                  <Input
+                    id="edit-fechaRegreso"
+                    type="datetime-local"
+                    value={formData.fechaRegreso}
+                    onChange={(e) => setFormData({ ...formData, fechaRegreso: e.target.value })}
+                    required
+                    disabled={isLoading}
+                  />
+                </div>
+              </div>
+
+              {/*IMPORTE Y MONEDA - QUINTO */}
+              <div className="grid grid-cols-2 gap-4">
+                <div className="grid gap-2">
+                  <Label htmlFor="edit-importe">Importe por persona</Label>
+                  <Input
+                    id="edit-importe"
+                    type="number"
+                    step="0.01"
+                    value={formData.importe}
+                    onChange={(e) => setFormData({ ...formData, importe: e.target.value })}
+                    required
+                    disabled={isLoading}
+                  />
+                </div>
+                <div className="grid gap-2">
+                  <Label htmlFor="edit-currency">Moneda</Label>
+                  <Select
+                    value={formData.currency}
+                    onValueChange={(value) => setFormData({ ...formData, currency: value })}
+                    required
+                    disabled={isLoading}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="ARS">🇦🇷 Pesos Argentinos</SelectItem>
+                      <SelectItem value="USD">🇺🇸 Dólares Americanos</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              {/* CAMPOS ESPECÍFICOS PARA CRUCEROS */}
+              {formData.type === "crucero" && (
+                <>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="grid gap-2">
+                      <Label htmlFor="edit-naviera">Naviera</Label>
+                      <Input
+                        id="edit-naviera"
+                        value={formData.naviera}
+                        onChange={(e) => setFormData({ ...formData, naviera: e.target.value })}
+                        placeholder="Ej: MSC, Royal Caribbean"
+                        disabled={isLoading}
+                      />
+                    </div>
+                    <div className="grid gap-2">
+                      <Label htmlFor="edit-barco">Nombre del Barco</Label>
+                      <Input
+                        id="edit-barco"
+                        value={formData.barco}
+                        onChange={(e) => setFormData({ ...formData, barco: e.target.value })}
+                        placeholder="Ej: MSC Seaside"
+                        disabled={isLoading}
+                      />
+                    </div>
+                  </div>
+                  <div className="grid gap-2">
+                    <Label htmlFor="edit-cabina">Tipo de Cabina</Label>
+                    <Input
+                      id="edit-cabina"
+                      value={formData.cabina}
+                      onChange={(e) => setFormData({ ...formData, cabina: e.target.value })}
+                      placeholder="Ej: Interior, Balcón, Suite"
+                      disabled={isLoading}
+                    />
+                  </div>
+                </>
+              )}
+
+              {/* CAMPOS ESPECÍFICOS PARA AÉREOS */}
+              {formData.type === "aereo" && (
+                <>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="grid gap-2">
+                      <Label htmlFor="edit-aerolinea">Aerolínea</Label>
+                      <Input
+                        id="edit-aerolinea"
+                        value={formData.aerolinea}
+                        onChange={(e) => setFormData({ ...formData, aerolinea: e.target.value })}
+                        placeholder="Ej: Aerolíneas Argentinas"
+                        disabled={isLoading}
+                      />
+                    </div>
+                    <div className="grid gap-2">
+                      <Label htmlFor="edit-numeroVuelo">Número de Vuelo</Label>
+                      <Input
+                        id="edit-numeroVuelo"
+                        value={formData.numeroVuelo}
+                        onChange={(e) => setFormData({ ...formData, numeroVuelo: e.target.value })}
+                        placeholder="Ej: AR1234"
+                        disabled={isLoading}
+                      />
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="grid gap-2">
+                      <Label htmlFor="edit-clase">Clase</Label>
+                      <Select
+                        value={formData.clase}
+                        onValueChange={(value) => setFormData({ ...formData, clase: value })}
+                        disabled={isLoading}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Seleccionar clase" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="economica">Económica</SelectItem>
+                          <SelectItem value="premium">Premium Economy</SelectItem>
+                          <SelectItem value="business">Business</SelectItem>
+                          <SelectItem value="primera">Primera Clase</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="grid gap-2">
+                      <Label htmlFor="edit-escalas">Escalas (opcional)</Label>
+                      <Input
+                        id="edit-escalas"
+                        value={formData.escalas}
+                        onChange={(e) => setFormData({ ...formData, escalas: e.target.value })}
+                        placeholder="Ej: 1 escala en Lima"
+                        disabled={isLoading}
+                      />
+                    </div>
+                  </div>
+                </>
+              )}
+
+              {/* DESCRIPCIÓN - ÚLTIMO */}
+              <div className="grid gap-2">
+                <Label htmlFor="edit-descripcion">Descripción / Incluye</Label>
+                <Textarea
+                  id="edit-descripcion"
+                  value={formData.descripcion}
+                  onChange={(e) => setFormData({ ...formData, descripcion: e.target.value })}
+                  placeholder="Describe qué incluye el viaje..."
+                  disabled={isLoading}
+                />
+              </div>
+            </div>
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={resetEditForm} disabled={isLoading}>
+                Cancelar
+              </Button>
+              <Button type="submit" disabled={isLoading}>
+                {isLoading ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : "Actualizar Viaje"}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
       {/* DIALOGO PARA AGREGAR PASAJERO */}
       <Dialog open={isPassengerDialogOpen} onOpenChange={setIsPassengerDialogOpen}>
-        <DialogTrigger asChild>
-          <Button variant="outline">Agregar Pasajero</Button>
-        </DialogTrigger>
-        <DialogContent className="sm:max-w-[425px]">
+        <DialogContent>
           <DialogHeader>
-            <DialogTitle>Agregar Pasajero</DialogTitle>
-            <DialogDescription>Selecciona un cliente para agregar como pasajero a este viaje.</DialogDescription>
+            <DialogTitle>
+              {selectedTrip?.type === "individual"
+                ? "Asignar Cliente"
+                : selectedTrip?.type === "crucero"
+                  ? "Agregar Pasajero al Crucero"
+                  : selectedTrip?.type === "aereo"
+                    ? "Agregar Pasajero al Vuelo"
+                    : "Agregar Pasajero al Viaje"}
+            </DialogTitle>
+            <DialogDescription>
+              {selectedTrip?.type === "individual"
+                ? "Asigna un cliente a este viaje individual"
+                : selectedTrip?.type === "crucero"
+                  ? "Selecciona el cliente y asigna una cabina"
+                  : selectedTrip?.type === "aereo"
+                    ? "Selecciona el cliente y asigna un asiento"
+                    : "Selecciona el cliente y asigna un asiento"}
+            </DialogDescription>
           </DialogHeader>
           <form onSubmit={handleAddPassenger}>
             <div className="grid gap-4 py-4">
+              <div className="grid gap-2">
+                <Label htmlFor="passenger-client">Cliente</Label>
+                <Select value={passengerClientId} onValueChange={setPassengerClientId} required disabled={isLoading}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Seleccionar cliente" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {selectedTrip &&
+                      getAvailableClients(selectedTrip.id).map((client) => (
+                        <SelectItem key={client.id} value={client.id}>
+                          {client.name} - {client.dni}
+                        </SelectItem>
+                      ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
               {selectedTrip?.type === "grupal" && (
                 <div className="grid gap-2">
-                  <Label htmlFor="seat">Asiento</Label>
-                  <Select
-                    value={selectedSeat}
-                    onValueChange={(value) => setSelectedSeat(value)}
-                    required
-                    disabled={isLoading || selectedTrip?.type === "individual"}
-                  >
+                  <Label htmlFor="passenger-seat">Asiento</Label>
+                  <Select value={selectedSeat} onValueChange={setSelectedSeat} required disabled={isLoading}>
                     <SelectTrigger>
                       <SelectValue placeholder="Seleccionar asiento" />
                     </SelectTrigger>
                     <SelectContent>
-                      {selectedTrip &&
-                        getAvailableSeatNumbers(selectedTrip).map((seatNumber) => (
-                          <SelectItem key={seatNumber} value={seatNumber.toString()}>
-                            {seatNumber}
-                          </SelectItem>
-                        ))}
+                      {getAvailableSeatNumbers(selectedTrip).map((seatNumber) => (
+                        <SelectItem key={seatNumber} value={seatNumber.toString()}>
+                          Asiento {seatNumber}
+                        </SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                 </div>
@@ -1935,21 +2204,17 @@ export function TripsManager({
 
               {selectedTrip?.type === "aereo" && (
                 <div className="grid gap-2">
-                  <Label htmlFor="seat">Asiento</Label>
-                  <Select
-                    value={selectedSeat}
-                    onValueChange={(value) => setSelectedSeat(value)}
-                    required
-                    disabled={isLoading || selectedTrip?.type === "individual"}
-                  >
+                  <Label htmlFor="passenger-seat-aereo">Asiento</Label>
+                  <Select value={selectedSeat} onValueChange={setSelectedSeat} required disabled={isLoading}>
                     <SelectTrigger>
                       <SelectValue placeholder="Seleccionar asiento" />
                     </SelectTrigger>
                     <SelectContent>
-                      {selectedTrip &&
-                        getAvailableSeatNumbers(selectedTrip).map((seatNumber) => (
+                      {getAvailableSeatNumbers(selectedTrip)
+                        .slice(0, 50)
+                        .map((seatNumber) => (
                           <SelectItem key={seatNumber} value={seatNumber.toString()}>
-                            {seatNumber}
+                            Asiento {seatNumber}
                           </SelectItem>
                         ))}
                     </SelectContent>
@@ -1959,43 +2224,40 @@ export function TripsManager({
 
               {selectedTrip?.type === "crucero" && (
                 <div className="grid gap-2">
-                  <Label htmlFor="cabin">Cabina</Label>
+                  <Label htmlFor="passenger-cabin">Número de Cabina</Label>
                   <Input
-                    id="cabin"
-                    type="text"
+                    id="passenger-cabin"
                     value={selectedCabin}
                     onChange={(e) => setSelectedCabin(e.target.value)}
+                    placeholder="Ej: A101, B205, Suite 301"
                     required
                     disabled={isLoading}
                   />
                 </div>
               )}
-
-              <div className="grid gap-2">
-                <Label htmlFor="clientId">Cliente</Label>
-                <Select
-                  value={passengerClientId}
-                  onValueChange={(value) => setPassengerClientId(value)}
-                  required
-                  disabled={isLoading}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Seleccionar cliente" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {selectedTrip &&
-                      getAvailableClients(selectedTrip.id).map((client) => (
-                        <SelectItem key={client.id} value={client.id}>
-                          {client.name}
-                        </SelectItem>
-                      ))}
-                  </SelectContent>
-                </Select>
-              </div>
             </div>
             <DialogFooter>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => {
+                  setPassengerClientId("")
+                  setSelectedSeat("")
+                  setSelectedCabin("")
+                  setIsPassengerDialogOpen(false)
+                }}
+                disabled={isLoading}
+              >
+                Cancelar
+              </Button>
               <Button type="submit" disabled={isLoading}>
-                {isLoading ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : "Agregar Pasajero"}
+                {isLoading ? (
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                ) : selectedTrip?.type === "individual" ? (
+                  "Asignar Cliente"
+                ) : (
+                  "Agregar Pasajero"
+                )}
               </Button>
             </DialogFooter>
           </form>
@@ -2004,30 +2266,36 @@ export function TripsManager({
 
       {/* DIALOGO PARA CAMBIAR ASIENTO */}
       <Dialog open={isSeatChangeDialogOpen} onOpenChange={setIsSeatChangeDialogOpen}>
-        <DialogContent className="sm:max-w-[425px]">
+        <DialogContent>
           <DialogHeader>
             <DialogTitle>Cambiar Asiento</DialogTitle>
-            <DialogDescription>Selecciona un nuevo asiento para el pasajero.</DialogDescription>
+            <DialogDescription>Selecciona el nuevo asiento para el pasajero</DialogDescription>
           </DialogHeader>
           <form onSubmit={handleChangeSeat}>
             <div className="grid gap-4 py-4">
+              {selectedPassenger && selectedTrip && (
+                <div className="p-4 bg-muted rounded-lg">
+                  <h4 className="font-medium mb-2">Pasajero</h4>
+                  <div className="text-sm space-y-1">
+                    <div>
+                      Cliente: {clients.find((c) => c.id === selectedPassenger.clientId)?.name || "Desconocido"}
+                    </div>
+                    <div>Asiento actual: {selectedPassenger.numeroAsiento}</div>
+                  </div>
+                </div>
+              )}
+
               <div className="grid gap-2">
-                <Label htmlFor="newSeatNumber">Nuevo Asiento</Label>
-                <Select
-                  value={newSeatNumber}
-                  onValueChange={(value) => setNewSeatNumber(value)}
-                  required
-                  disabled={isLoading}
-                >
+                <Label htmlFor="new-seat">Nuevo Asiento</Label>
+                <Select value={newSeatNumber} onValueChange={setNewSeatNumber} required disabled={isLoading}>
                   <SelectTrigger>
-                    <SelectValue placeholder="Seleccionar asiento" />
+                    <SelectValue placeholder="Seleccionar nuevo asiento" />
                   </SelectTrigger>
                   <SelectContent>
                     {selectedTrip &&
-                      selectedPassenger &&
-                      getAvailableSeatNumbers(selectedTrip, selectedPassenger.id).map((seatNumber) => (
+                      getAvailableSeatNumbers(selectedTrip, selectedPassenger?.id).map((seatNumber) => (
                         <SelectItem key={seatNumber} value={seatNumber.toString()}>
-                          {seatNumber}
+                          Asiento {seatNumber}
                         </SelectItem>
                       ))}
                   </SelectContent>
@@ -2035,6 +2303,17 @@ export function TripsManager({
               </div>
             </div>
             <DialogFooter>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => {
+                  setNewSeatNumber("")
+                  setIsSeatChangeDialogOpen(false)
+                }}
+                disabled={isLoading}
+              >
+                Cancelar
+              </Button>
               <Button type="submit" disabled={isLoading}>
                 {isLoading ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : "Cambiar Asiento"}
               </Button>
@@ -2043,30 +2322,70 @@ export function TripsManager({
         </DialogContent>
       </Dialog>
 
-      {/* DIALOGO PARA COBRAR */}
+      {/* DIALOGO PARA PROCESAR PAGO */}
       <Dialog open={isPaymentDialogOpen} onOpenChange={setIsPaymentDialogOpen}>
-        <DialogContent className="sm:max-w-[425px]">
+        <DialogContent>
           <DialogHeader>
-            <DialogTitle>Registrar Pago</DialogTitle>
-            <DialogDescription>Ingresa el monto del pago para este pasajero.</DialogDescription>
+            <DialogTitle>Procesar Pago</DialogTitle>
+            <DialogDescription>Registra el pago del cliente para este viaje</DialogDescription>
           </DialogHeader>
           <form onSubmit={handlePayment}>
             <div className="grid gap-4 py-4">
+              {selectedPassenger && selectedTrip && (
+                <div className="p-4 bg-muted rounded-lg">
+                  <h4 className="font-medium mb-2">Detalles del Viaje</h4>
+                  <div className="text-sm space-y-1">
+                    <div>
+                      Cliente: {clients.find((c) => c.id === selectedPassenger.clientId)?.name || "Desconocido"}
+                    </div>
+                    <div>Destino: {selectedTrip.destino}</div>
+                    <div>
+                      Importe: {selectedTrip.currency === "USD" ? "US$" : "$"}
+                      {selectedTrip.importe.toLocaleString()}
+                    </div>
+                    {selectedTrip.type === "grupal" && <div>Asiento: {selectedPassenger.numeroAsiento}</div>}
+                    {selectedTrip.type === "aereo" && <div>Asiento: {selectedPassenger.numeroAsiento}</div>}
+                    {selectedTrip.type === "crucero" && <div>Cabina: {selectedPassenger.numeroCabina}</div>}
+                  </div>
+                </div>
+              )}
+
               <div className="grid gap-2">
-                <Label htmlFor="paymentAmount">Monto del Pago</Label>
+                <Label htmlFor="payment-amount">Monto del Pago</Label>
                 <Input
-                  id="paymentAmount"
+                  id="payment-amount"
                   type="number"
+                  step="0.01"
                   value={paymentAmount}
                   onChange={(e) => setPaymentAmount(e.target.value)}
+                  placeholder={selectedTrip ? selectedTrip.importe.toString() : "0"}
                   required
                   disabled={isLoading}
                 />
+                <div className="text-xs text-muted-foreground">
+                  {selectedTrip && (
+                    <>
+                      Importe total: {selectedTrip.currency === "USD" ? "US$" : "$"}
+                      {selectedTrip.importe.toLocaleString()}
+                    </>
+                  )}
+                </div>
               </div>
             </div>
             <DialogFooter>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => {
+                  setPaymentAmount("")
+                  setIsPaymentDialogOpen(false)
+                }}
+                disabled={isLoading}
+              >
+                Cancelar
+              </Button>
               <Button type="submit" disabled={isLoading}>
-                {isLoading ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : "Registrar Pago"}
+                {isLoading ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : "Procesar Pago"}
               </Button>
             </DialogFooter>
           </form>
@@ -2075,52 +2394,68 @@ export function TripsManager({
 
       {/* DIALOGO PARA VER IMAGEN COMPLETA */}
       <Dialog open={isImageDialogOpen} onOpenChange={setIsImageDialogOpen}>
-        <DialogContent className="sm:max-w-[700px] sm:max-h-[600px]">
-          {selectedTrip && selectedTrip.type === "grupal" && (
-            <div className="space-y-4">
-              {buses.map((bus) => (
-                <div key={bus.id}>
-                  {bus.imagenDistribucion && (
-                    <Image
-                      src={bus.imagenDistribucion || "/placeholder.svg"}
-                      alt={`Distribución ${bus.patente}`}
-                      width={700}
-                      height={500}
-                      className="rounded-lg border object-contain w-full max-h-[500px]"
-                    />
-                  )}
+        <DialogContent className="sm:max-w-[800px]">
+          <DialogHeader>
+            <DialogTitle>
+              Distribución de Asientos - {selectedTrip && buses.find((b) => b.id === selectedTrip.busId)?.patente}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="py-4">
+            {selectedTrip && (
+              <div className="space-y-4">
+                <div className="text-center">
+                  <p className="text-sm text-muted-foreground">
+                    {buses.find((b) => b.id === selectedTrip.busId)?.tipoServicio} -{" "}
+                    {buses.find((b) => b.id === selectedTrip.busId)?.asientos} asientos
+                  </p>
                 </div>
-              ))}
-            </div>
-          )}
+                <div className="flex justify-center">
+                  <Image
+                    src={buses.find((b) => b.id === selectedTrip.busId)?.imagenDistribucion || "/placeholder.svg"}
+                    alt={`Distribución ${buses.find((b) => b.id === selectedTrip.busId)?.patente}`}
+                    width={600}
+                    height={400}
+                    className="rounded-lg border object-contain max-w-full max-h-[500px]"
+                  />
+                </div>
+              </div>
+            )}
+          </div>
         </DialogContent>
       </Dialog>
 
-      {/* DIALOGO PARA RECIBO */}
-      <Dialog open={!!selectedPayment} onOpenChange={() => setSelectedPayment(null)}>
-        <DialogContent className="sm:max-w-[425px]">
-          <DialogHeader>
-            <DialogTitle>Recibo de Pago</DialogTitle>
-            <DialogDescription>Imprime o guarda el recibo de pago.</DialogDescription>
-          </DialogHeader>
-          {selectedPayment && (
-            <div className="space-y-4 py-4">
-              <p>Recibo N°: {selectedPayment.receiptNumber}</p>
-              <p>
-                Monto: ${selectedPayment.currency === "USD" ? "US$" : "$"}
-                {selectedPayment.amount.toLocaleString()}
-              </p>
-              <p>Fecha: {selectedPayment.date.toLocaleDateString()}</p>
-              <DialogFooter>
-                <Button onClick={() => printReceipt(selectedPayment!)}>
-                  <Printer className="h-4 w-4 mr-2" />
-                  Imprimir Recibo
-                </Button>
-              </DialogFooter>
+      {/* MOSTRAR RECIBO DESPUÉS DEL PAGO */}
+      {selectedPayment && (
+        <Dialog
+          open={!!selectedPayment}
+          onOpenChange={() => {
+            setSelectedPayment(null)
+          }}
+        >
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Pago Procesado Exitosamente</DialogTitle>
+              <DialogDescription>El pago se ha registrado correctamente</DialogDescription>
+            </DialogHeader>
+            <div className="py-4">
+              <div className="text-center space-y-2">
+                <div className="text-2xl font-bold text-green-600">
+                  {selectedPayment.currency === "USD" ? "US$" : "$"}
+                  {selectedPayment.amount.toLocaleString()}
+                </div>
+                <div className="text-sm text-muted-foreground">Recibo N° {selectedPayment.receiptNumber}</div>
+              </div>
             </div>
-          )}
-        </DialogContent>
-      </Dialog>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => printReceipt(selectedPayment)}>
+                <Printer className="h-4 w-4 mr-2" />
+                Imprimir Recibo
+              </Button>
+              <Button onClick={() => setSelectedPayment(null)}>Cerrar</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      )}
     </div>
   )
 }

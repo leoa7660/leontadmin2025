@@ -33,6 +33,9 @@ import {
   Download,
   ArrowRightLeft,
   Loader2,
+  Banknote,
+  Smartphone,
+  Building,
 } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import { createPayment, updatePayment } from "../actions/database"
@@ -47,6 +50,17 @@ interface AccountsManagerProps {
   currentUser: User
   onDataChange?: () => Promise<void>
 }
+
+// Tipos de métodos de pago
+const PAYMENT_METHODS = [
+  { value: "efectivo", label: "Efectivo", icon: Banknote },
+  { value: "transferencia", label: "Transferencia Bancaria", icon: Building },
+  { value: "tarjeta_debito", label: "Tarjeta de Débito", icon: CreditCard },
+  { value: "tarjeta_credito", label: "Tarjeta de Crédito", icon: CreditCard },
+  { value: "mercadopago", label: "Mercado Pago", icon: Smartphone },
+  { value: "cheque", label: "Cheque", icon: FileText },
+  { value: "otro", label: "Otro", icon: AlertCircle },
+]
 
 export function AccountsManager({
   clients,
@@ -72,6 +86,8 @@ export function AccountsManager({
     currency: "ARS",
     description: "",
     receiptNumber: "",
+    paymentMethod: "efectivo",
+    paymentReference: "", // Para número de transferencia, cheque, etc.
   })
   const [chargeData, setChargeData] = useState({
     tripId: "",
@@ -82,7 +98,7 @@ export function AccountsManager({
   const [transferData, setTransferData] = useState({
     targetTripId: "",
     amount: "",
-    concept: "", // Nuevo campo para el concepto
+    concept: "",
   })
 
   // Filtrar clientes por término de búsqueda
@@ -165,6 +181,12 @@ export function AccountsManager({
     }
   }
 
+  // Obtener el método de pago desde la descripción (para pagos existentes)
+  const getPaymentMethodFromDescription = (description: string) => {
+    const method = PAYMENT_METHODS.find((pm) => description.toLowerCase().includes(pm.value))
+    return method || PAYMENT_METHODS[0]
+  }
+
   // Manejar pago
   const handlePayment = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -172,13 +194,26 @@ export function AccountsManager({
     setIsLoading(true)
 
     try {
+      const selectedMethod = PAYMENT_METHODS.find((pm) => pm.value === paymentData.paymentMethod)
+      let paymentDescription = paymentData.description
+
+      // Agregar información del método de pago a la descripción
+      if (selectedMethod) {
+        paymentDescription = `${paymentData.description} - Método: ${selectedMethod.label}`
+
+        // Agregar referencia si existe
+        if (paymentData.paymentReference.trim()) {
+          paymentDescription += ` - Ref: ${paymentData.paymentReference}`
+        }
+      }
+
       const newPaymentData: Omit<Payment, "id" | "date"> = {
         clientId: selectedClient.id,
         tripId: paymentData.tripId,
         amount: Number.parseFloat(paymentData.amount),
         currency: paymentData.currency as "ARS" | "USD",
         type: "payment",
-        description: paymentData.description,
+        description: paymentDescription,
         receiptNumber: paymentData.receiptNumber || `REC-${Date.now()}`,
       }
 
@@ -186,7 +221,7 @@ export function AccountsManager({
 
       toast({
         title: "Pago registrado",
-        description: "El pago se ha registrado exitosamente.",
+        description: `Pago de ${paymentData.currency === "USD" ? "US$" : "$"}${Number.parseFloat(paymentData.amount).toLocaleString()} registrado exitosamente.`,
       })
 
       resetPaymentForm()
@@ -281,13 +316,13 @@ export function AccountsManager({
         // Actualizar el pago original con el monto restante
         await updatePayment(selectedPayment.id, {
           amount: originalAmount - transferAmount,
-          description: `${selectedPayment.description} - Transferencia parcial de $${transferAmount} - Concepto: ${transferData.concept}`,
+          description: `${selectedPayment.description} - Transferencia parcial de ${selectedPayment.currency === "USD" ? "US$" : "$"}${transferAmount} - Concepto: ${transferData.concept}`,
         })
       }
 
       toast({
         title: "Transferencia realizada",
-        description: `Se ha transferido ${transferAmount === originalAmount ? "todo el pago" : `$${transferAmount}`} exitosamente.`,
+        description: `Se ha transferido ${transferAmount === originalAmount ? "todo el pago" : `${selectedPayment.currency === "USD" ? "US$" : "$"}${transferAmount}`} exitosamente.`,
       })
 
       resetTransferForm()
@@ -320,6 +355,8 @@ export function AccountsManager({
       currency: "ARS",
       description: "",
       receiptNumber: "",
+      paymentMethod: "efectivo",
+      paymentReference: "",
     })
     setIsPaymentDialogOpen(false)
   }
@@ -363,6 +400,7 @@ export function AccountsManager({
   const printReceipt = (payment: Payment) => {
     const client = clients.find((c) => c.id === payment.clientId)
     const trip = trips.find((t) => t.id === payment.tripId)
+    const paymentMethod = getPaymentMethodFromDescription(payment.description)
 
     const receiptContent = `
       <!DOCTYPE html>
@@ -370,27 +408,214 @@ export function AccountsManager({
         <head>
           <title>Recibo - ${payment.receiptNumber}</title>
           <style>
-            body { font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; }
-            .header { text-align: center; border-bottom: 2px solid #333; padding-bottom: 20px; margin-bottom: 20px; }
-            .info-row { display: flex; justify-content: space-between; margin: 8px 0; }
-            .total { font-size: 20px; font-weight: bold; }
-            @media print { body { margin: 0; } }
+            body { 
+              font-family: Arial, sans-serif; 
+              max-width: 600px; 
+              margin: 0 auto; 
+              padding: 20px; 
+              color: #333;
+            }
+            .header { 
+              text-align: center; 
+              border-bottom: 2px solid #333; 
+              padding-bottom: 20px; 
+              margin-bottom: 20px; 
+            }
+            .logo-section { 
+              display: flex; 
+              align-items: center; 
+              justify-content: center; 
+              gap: 15px; 
+              margin-bottom: 15px; 
+            }
+            .logo { 
+              width: 60px; 
+              height: 60px; 
+              border-radius: 50%; 
+              border: 2px solid #2563eb;
+              background-color: #f8f9fa;
+            }
+            .company-info { 
+              text-align: center; 
+              margin-bottom: 15px; 
+            }
+            .company-name { 
+              font-size: 24px; 
+              font-weight: bold; 
+              color: #2563eb; 
+              margin: 0; 
+            }
+            .company-subtitle { 
+              font-size: 14px; 
+              color: #666; 
+              margin: 0; 
+            }
+            .receipt-title { 
+              font-size: 18px; 
+              margin-top: 15px; 
+              font-weight: bold; 
+            }
+            .receipt-number { 
+              font-size: 14px; 
+              color: #666; 
+            }
+            .section { 
+              margin: 20px 0; 
+            }
+            .section-title { 
+              font-weight: bold; 
+              font-size: 16px; 
+              margin-bottom: 10px; 
+              border-bottom: 1px solid #ddd; 
+              padding-bottom: 5px; 
+            }
+            .info-row { 
+              display: flex; 
+              justify-content: space-between; 
+              margin: 8px 0; 
+            }
+            .info-label { 
+              font-weight: bold; 
+            }
+            .total-section { 
+              background-color: #f8f9fa; 
+              padding: 15px; 
+              border-radius: 5px; 
+              margin-top: 20px; 
+            }
+            .total-amount { 
+              font-size: 20px; 
+              font-weight: bold; 
+              color: #2563eb; 
+            }
+            .currency-badge { 
+              background-color: #e3f2fd; 
+              color: #1976d2; 
+              padding: 2px 8px; 
+              border-radius: 12px; 
+              font-size: 12px; 
+              font-weight: bold; 
+            }
+            .payment-method { 
+              background-color: #f0f9ff; 
+              padding: 10px; 
+              border-radius: 5px; 
+              margin: 10px 0; 
+            }
+            .footer { 
+              text-align: center; 
+              margin-top: 30px; 
+              padding-top: 20px; 
+              border-top: 1px solid #ddd; 
+              color: #666; 
+              font-size: 12px; 
+            }
+            .logo-placeholder {
+              width: 60px;
+              height: 60px;
+              border-radius: 50%;
+              background: linear-gradient(135deg, #2563eb, #3b82f6);
+              display: flex;
+              align-items: center;
+              justify-content: center;
+              color: white;
+              font-weight: bold;
+              font-size: 18px;
+              margin: 0 auto;
+            }
+            @media print { 
+              body { margin: 0; } 
+              .no-print { display: none; }
+              .logo { 
+                -webkit-print-color-adjust: exact;
+                color-adjust: exact;
+              }
+            }
           </style>
         </head>
         <body>
           <div class="header">
-            <h1>LT Tour Operator</h1>
-            <h2>RECIBO DE ${payment.type === "payment" ? "PAGO" : "CARGO"}</h2>
-            <p>N° ${payment.receiptNumber || "N/A"}</p>
+            <div class="logo-section">
+              <div class="logo-placeholder">LT</div>
+              <div class="company-info">
+                <h1 class="company-name">LT Tour Operator</h1>
+                <p class="company-subtitle">Tu compañía de confianza para viajar</p>
+              </div>
+            </div>
+            <div class="receipt-title">RECIBO DE ${payment.type === "payment" ? "PAGO" : "CARGO"}</div>
+            <div class="receipt-number">N° ${payment.receiptNumber || "N/A"}</div>
+            <div class="currency-badge">${payment.currency === "USD" ? "DÓLARES AMERICANOS" : "PESOS ARGENTINOS"}</div>
           </div>
-          <div class="info-row"><span>Cliente:</span><span>${client?.name || "N/A"}</span></div>
-          <div class="info-row"><span>DNI:</span><span>${client?.dni || "N/A"}</span></div>
-          <div class="info-row"><span>Viaje:</span><span>${trip?.destino || "N/A"}</span></div>
-          <div class="info-row"><span>Fecha:</span><span>${payment.date.toLocaleDateString()}</span></div>
-          <div class="info-row"><span>Concepto:</span><span>${payment.description}</span></div>
-          <div class="info-row total">
-            <span>TOTAL:</span>
-            <span>${payment.currency === "USD" ? "US$" : "$"}${payment.amount.toLocaleString()}</span>
+
+          <div class="section">
+            <div class="section-title">Información del Cliente</div>
+            <div class="info-row">
+              <span class="info-label">Nombre:</span>
+              <span>${client?.name || "N/A"}</span>
+            </div>
+            <div class="info-row">
+              <span class="info-label">DNI:</span>
+              <span>${client?.dni || "N/A"}</span>
+            </div>
+            <div class="info-row">
+              <span class="info-label">Email:</span>
+              <span>${client?.email || "N/A"}</span>
+            </div>
+            <div class="info-row">
+              <span class="info-label">Teléfono:</span>
+              <span>${client?.phone || "N/A"}</span>
+            </div>
+          </div>
+
+          <div class="section">
+            <div class="section-title">Detalles del Viaje</div>
+            <div class="info-row">
+              <span class="info-label">Destino:</span>
+              <span>${trip?.destino || "N/A"}</span>
+            </div>
+            <div class="info-row">
+              <span class="info-label">Fecha de Salida:</span>
+              <span>${trip?.fechaSalida.toLocaleDateString() || "N/A"}</span>
+            </div>
+            <div class="info-row">
+              <span class="info-label">Tipo de Viaje:</span>
+              <span>${trip?.type === "grupal" ? "Salida Grupal" : trip?.type === "individual" ? "Salida Individual" : trip?.type === "crucero" ? "Crucero" : trip?.type === "aereo" ? "Vuelo" : "N/A"}</span>
+            </div>
+          </div>
+
+          <div class="payment-method">
+            <div class="section-title">Método de Pago</div>
+            <div class="info-row">
+              <span class="info-label">Forma de Pago:</span>
+              <span>${paymentMethod.label}</span>
+            </div>
+            <div class="info-row">
+              <span class="info-label">Fecha del Pago:</span>
+              <span>${payment.date.toLocaleDateString()}</span>
+            </div>
+            <div class="info-row">
+              <span class="info-label">Descripción:</span>
+              <span>${payment.description}</span>
+            </div>
+          </div>
+
+          <div class="total-section">
+            <div class="info-row">
+              <span class="info-label">TOTAL ${payment.type === "payment" ? "PAGADO" : "CARGADO"}:</span>
+              <span class="total-amount">${payment.currency === "USD" ? "US$" : "$"}${payment.amount.toLocaleString()}</span>
+            </div>
+          </div>
+
+          <div class="footer">
+            <p><strong>LT Tour Operator</strong> - Tu compañía de confianza para viajar</p>
+            <p>Gracias por confiar en nosotros</p>
+            <p>Recibo generado el ${new Date().toLocaleDateString()}</p>
+          </div>
+
+          <div class="no-print" style="text-align: center; margin-top: 20px;">
+            <button onclick="window.print()" style="background-color: #2563eb; color: white; padding: 10px 20px; border: none; border-radius: 5px; cursor: pointer;">
+              Imprimir Recibo
+            </button>
           </div>
         </body>
       </html>
@@ -401,7 +626,6 @@ export function AccountsManager({
       printWindow.document.write(receiptContent)
       printWindow.document.close()
       printWindow.focus()
-      printWindow.print()
     }
   }
 
@@ -411,11 +635,12 @@ export function AccountsManager({
     const accountStatus = getAccountStatus(client.id)
 
     let csvContent = "data:text/csv;charset=utf-8,"
-    csvContent += "Fecha,Tipo,Viaje,Descripción,Monto,Moneda,Recibo\n"
+    csvContent += "Fecha,Tipo,Viaje,Descripción,Monto,Moneda,Recibo,Método de Pago\n"
 
     clientPayments.forEach((payment) => {
       const trip = trips.find((t) => t.id === payment.tripId)
-      csvContent += `${payment.date.toLocaleDateString()},${payment.type === "payment" ? "Pago" : "Cargo"},${trip?.destino || "N/A"},"${payment.description}",${payment.amount},${payment.currency},${payment.receiptNumber || "N/A"}\n`
+      const paymentMethod = getPaymentMethodFromDescription(payment.description)
+      csvContent += `${payment.date.toLocaleDateString()},${payment.type === "payment" ? "Pago" : "Cargo"},${trip?.destino || "N/A"},"${payment.description}",${payment.amount},${payment.currency},${payment.receiptNumber || "N/A"},${paymentMethod.label}\n`
     })
 
     const encodedUri = encodeURI(csvContent)
@@ -590,7 +815,7 @@ export function AccountsManager({
                                   Registrar Pago
                                 </Button>
                               </DialogTrigger>
-                              <DialogContent>
+                              <DialogContent className="sm:max-w-[500px]">
                                 <DialogHeader>
                                   <DialogTitle>Registrar Pago</DialogTitle>
                                   <DialogDescription>Registra un nuevo pago del cliente</DialogDescription>
@@ -619,12 +844,14 @@ export function AccountsManager({
                                         </SelectContent>
                                       </Select>
                                     </div>
+
                                     <div className="grid grid-cols-2 gap-4">
                                       <div className="grid gap-2">
                                         <Label htmlFor="payment-amount">Monto</Label>
                                         <Input
                                           id="payment-amount"
                                           type="number"
+                                          step="0.01"
                                           value={paymentData.amount}
                                           onChange={(e) => setPaymentData({ ...paymentData, amount: e.target.value })}
                                           required
@@ -643,12 +870,74 @@ export function AccountsManager({
                                             <SelectValue />
                                           </SelectTrigger>
                                           <SelectContent>
-                                            <SelectItem value="ARS">ARS</SelectItem>
-                                            <SelectItem value="USD">USD</SelectItem>
+                                            <SelectItem value="ARS">🇦🇷 Pesos Argentinos</SelectItem>
+                                            <SelectItem value="USD">🇺🇸 Dólares Americanos</SelectItem>
                                           </SelectContent>
                                         </Select>
                                       </div>
                                     </div>
+
+                                    <div className="grid gap-2">
+                                      <Label htmlFor="payment-method">Método de Pago</Label>
+                                      <Select
+                                        value={paymentData.paymentMethod}
+                                        onValueChange={(value) =>
+                                          setPaymentData({ ...paymentData, paymentMethod: value })
+                                        }
+                                        required
+                                        disabled={isLoading}
+                                      >
+                                        <SelectTrigger>
+                                          <SelectValue />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                          {PAYMENT_METHODS.map((method) => {
+                                            const IconComponent = method.icon
+                                            return (
+                                              <SelectItem key={method.value} value={method.value}>
+                                                <div className="flex items-center gap-2">
+                                                  <IconComponent className="h-4 w-4" />
+                                                  {method.label}
+                                                </div>
+                                              </SelectItem>
+                                            )
+                                          })}
+                                        </SelectContent>
+                                      </Select>
+                                    </div>
+
+                                    {/* Campo de referencia para ciertos métodos de pago */}
+                                    {(paymentData.paymentMethod === "transferencia" ||
+                                      paymentData.paymentMethod === "cheque" ||
+                                      paymentData.paymentMethod === "mercadopago" ||
+                                      paymentData.paymentMethod === "otro") && (
+                                      <div className="grid gap-2">
+                                        <Label htmlFor="payment-reference">
+                                          {paymentData.paymentMethod === "transferencia" && "N° de Transferencia"}
+                                          {paymentData.paymentMethod === "cheque" && "N° de Cheque"}
+                                          {paymentData.paymentMethod === "mercadopago" && "ID de Transacción"}
+                                          {paymentData.paymentMethod === "otro" && "Referencia"}
+                                        </Label>
+                                        <Input
+                                          id="payment-reference"
+                                          value={paymentData.paymentReference}
+                                          onChange={(e) =>
+                                            setPaymentData({ ...paymentData, paymentReference: e.target.value })
+                                          }
+                                          placeholder={
+                                            paymentData.paymentMethod === "transferencia"
+                                              ? "Ej: 123456789"
+                                              : paymentData.paymentMethod === "cheque"
+                                                ? "Ej: 001234"
+                                                : paymentData.paymentMethod === "mercadopago"
+                                                  ? "Ej: MP-123456"
+                                                  : "Información adicional"
+                                          }
+                                          disabled={isLoading}
+                                        />
+                                      </div>
+                                    )}
+
                                     <div className="grid gap-2">
                                       <Label htmlFor="payment-description">Descripción</Label>
                                       <Textarea
@@ -657,9 +946,11 @@ export function AccountsManager({
                                         onChange={(e) =>
                                           setPaymentData({ ...paymentData, description: e.target.value })
                                         }
+                                        placeholder="Concepto del pago..."
                                         disabled={isLoading}
                                       />
                                     </div>
+
                                     <div className="grid gap-2">
                                       <Label htmlFor="payment-receipt">N° de Recibo (opcional)</Label>
                                       <Input
@@ -668,11 +959,20 @@ export function AccountsManager({
                                         onChange={(e) =>
                                           setPaymentData({ ...paymentData, receiptNumber: e.target.value })
                                         }
+                                        placeholder="Se generará automáticamente si se deja vacío"
                                         disabled={isLoading}
                                       />
                                     </div>
                                   </div>
                                   <DialogFooter>
+                                    <Button
+                                      type="button"
+                                      variant="outline"
+                                      onClick={resetPaymentForm}
+                                      disabled={isLoading}
+                                    >
+                                      Cancelar
+                                    </Button>
                                     <Button type="submit" disabled={isLoading}>
                                       {isLoading ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : "Registrar Pago"}
                                     </Button>
@@ -721,6 +1021,7 @@ export function AccountsManager({
                                         <Input
                                           id="charge-amount"
                                           type="number"
+                                          step="0.01"
                                           value={chargeData.amount}
                                           onChange={(e) => setChargeData({ ...chargeData, amount: e.target.value })}
                                           required
@@ -739,8 +1040,8 @@ export function AccountsManager({
                                             <SelectValue />
                                           </SelectTrigger>
                                           <SelectContent>
-                                            <SelectItem value="ARS">ARS</SelectItem>
-                                            <SelectItem value="USD">USD</SelectItem>
+                                            <SelectItem value="ARS">🇦🇷 Pesos Argentinos</SelectItem>
+                                            <SelectItem value="USD">🇺🇸 Dólares Americanos</SelectItem>
                                           </SelectContent>
                                         </Select>
                                       </div>
@@ -757,6 +1058,14 @@ export function AccountsManager({
                                     </div>
                                   </div>
                                   <DialogFooter>
+                                    <Button
+                                      type="button"
+                                      variant="outline"
+                                      onClick={resetChargeForm}
+                                      disabled={isLoading}
+                                    >
+                                      Cancelar
+                                    </Button>
                                     <Button type="submit" disabled={isLoading}>
                                       {isLoading ? (
                                         <Loader2 className="h-4 w-4 mr-2 animate-spin" />
@@ -787,6 +1096,8 @@ export function AccountsManager({
                               clientPayments.map((payment) => {
                                 const trip = trips.find((t) => t.id === payment.tripId)
                                 const availableTrips = getAvailableTripsForTransfer(payment)
+                                const paymentMethod = getPaymentMethodFromDescription(payment.description)
+                                const IconComponent = paymentMethod.icon
 
                                 return (
                                   <Card key={payment.id}>
@@ -801,6 +1112,10 @@ export function AccountsManager({
                                               {payment.currency === "USD" ? "US$" : "$"}
                                               {payment.amount.toLocaleString()}
                                             </span>
+                                            <div className="flex items-center gap-1 text-sm text-muted-foreground">
+                                              <IconComponent className="h-3 w-3" />
+                                              {paymentMethod.label}
+                                            </div>
                                           </div>
                                           <div className="text-sm text-muted-foreground">
                                             <div>Viaje: {trip?.destino || "N/A"}</div>
@@ -977,6 +1292,7 @@ export function AccountsManager({
                   <Input
                     id="transfer-amount"
                     type="number"
+                    step="0.01"
                     value={transferData.amount}
                     onChange={(e) => setTransferData({ ...transferData, amount: e.target.value })}
                     max={selectedPayment.amount}
@@ -1012,7 +1328,8 @@ export function AccountsManager({
                       <span className="text-sm font-medium">Transferencia Parcial</span>
                     </div>
                     <div className="text-xs text-yellow-700 mt-1">
-                      Se transferirán ${transferData.amount} y quedarán $
+                      Se transferirán {selectedPayment.currency === "USD" ? "US$" : "$"}
+                      {transferData.amount} y quedarán {selectedPayment.currency === "USD" ? "US$" : "$"}
                       {(selectedPayment.amount - Number.parseFloat(transferData.amount || "0")).toLocaleString()} en el
                       viaje original.
                     </div>
