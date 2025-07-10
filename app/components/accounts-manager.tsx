@@ -433,7 +433,7 @@ export function AccountsManager({
               height: 60px; 
               border-radius: 50%; 
               border: 2px solid #2563eb;
-              background-color: #f8f9fa;
+              object-fit: cover;
             }
             .company-info { 
               text-align: center; 
@@ -510,25 +510,13 @@ export function AccountsManager({
               color: #666; 
               font-size: 12px; 
             }
-            .logo-placeholder {
-              width: 60px;
-              height: 60px;
-              border-radius: 50%;
-              background: linear-gradient(135deg, #2563eb, #3b82f6);
-              display: flex;
-              align-items: center;
-              justify-content: center;
-              color: white;
-              font-weight: bold;
-              font-size: 18px;
-              margin: 0 auto;
-            }
             @media print { 
               body { margin: 0; } 
               .no-print { display: none; }
               .logo { 
                 -webkit-print-color-adjust: exact;
                 color-adjust: exact;
+                print-color-adjust: exact;
               }
             }
           </style>
@@ -536,7 +524,7 @@ export function AccountsManager({
         <body>
           <div class="header">
             <div class="logo-section">
-              <div class="logo-placeholder">LT</div>
+              <img src="/logo.jfif" alt="LT Tour Operator Logo" class="logo" />
               <div class="company-info">
                 <h1 class="company-name">LT Tour Operator</h1>
                 <p class="company-subtitle">Tu compañía de confianza para viajar</p>
