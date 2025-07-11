@@ -941,7 +941,18 @@ export function TripsManager({
             text-align: center; 
             margin-bottom: 10px; 
           }
-          .seat-info { 
+            font-size: 18px; 
+            font-weight: bold; 
+            color: #856404; 
+            text-align: center; 
+            margin-bottom: 10px; 
+          }
+
+            color: #856404;
+            text-align: center;
+            margin-bottom: 10px;
+          }
+          .seat-info {
             background-color
             margin-bottom: 10px;
           }
@@ -1390,7 +1401,7 @@ export function TripsManager({
                           Ver
                         </Button>
                       </DialogTrigger>
-                      <DialogContent className="sm:max-w-[720px]">
+                      <DialogContent className="sm:max-w-[900px]">
                         <DialogHeader>
                           <DialogTitle className="flex items-center gap-2">
                             {getTripIcon(trip.type)}
@@ -1453,99 +1464,195 @@ export function TripsManager({
 
                           <TripTypeInfo trip={trip} />
 
-                          {passengers.length > 0 && (
-                            <div>
-                              <h4 className="font-semibold mb-2">
-                                {trip.type === "individual" ? "Cliente" : "Pasajeros Registrados"}
-                              </h4>
-                              <div className="space-y-2 max-h-40 overflow-y-auto">
-                                {passengers.map((passenger) => {
-                                  const client = clients.find((c) => c.id === passenger.clientId)
-                                  return (
-                                    <div
-                                      key={passenger.id}
-                                      className="flex items-center justify-between p-2 bg-muted rounded text-sm flex-wrap gap-2"
-                                    >
-                                      <div className="flex items-center gap-4 flex-1">
-                                        {trip.type === "grupal" && (
-                                          <span className="font-medium">Asiento {passenger.numeroAsiento}</span>
-                                        )}
-                                        {trip.type === "aereo" && (
-                                          <span className="font-medium">Asiento {passenger.numeroAsiento}</span>
-                                        )}
-                                        {trip.type === "crucero" && (
-                                          <span className="font-medium">Cabina {passenger.numeroCabina}</span>
-                                        )}
-                                        <span className="text-muted-foreground">{client?.name}</span>
-                                      </div>
-                                      <div className="flex items-center gap-2 flex-shrink-0">
-                                        {!trip.archived && (trip.type === "grupal" || trip.type === "aereo") && (
-                                          <Button
-                                            variant="outline"
-                                            size="sm"
-                                            className="h-6 px-2 text-xs bg-transparent"
-                                            onClick={() => openSeatChangeDialog(passenger, trip)}
-                                            disabled={isLoading}
+                          {(() => {
+                            const getPassengerBalance = (clientId: string, tripId: string) => {
+                              const trip = trips.find((t) => t.id === tripId)
+                              if (!trip) return 0
+
+                              const clientPayments = payments.filter(
+                                (p) => p.clientId === clientId && p.tripId === tripId && p.type === "payment",
+                              )
+                              const totalPaid = clientPayments.reduce((sum, payment) => sum + payment.amount, 0)
+                              const balance = totalPaid - trip.importe
+
+                              return { totalPaid, balance, tripAmount: trip.importe }
+                            }
+
+                            return (
+                              <>
+                                {passengers.length > 0 && (
+                                  <div>
+                                    <h4 className="font-semibold mb-2">
+                                      {trip.type === "individual" ? "Cliente" : "Pasajeros Registrados"}
+                                    </h4>
+                                    <div className="space-y-2 max-h-40 overflow-y-auto">
+                                      {passengers.map((passenger) => {
+                                        const client = clients.find((c) => c.id === passenger.clientId)
+                                        return (
+                                          <div
+                                            key={passenger.id}
+                                            className="flex items-center justify-between p-2 bg-muted rounded text-sm flex-wrap gap-2"
                                           >
-                                            <ArrowRightLeft className="h-3 w-3 mr-1" />
-                                            Cambiar Asiento
-                                          </Button>
-                                        )}
-                                        <Button
-                                          variant="outline"
-                                          size="sm"
-                                          className="h-6 px-2 text-xs bg-transparent"
-                                          onClick={() => printVoucher(passenger, trip)}
-                                        >
-                                          <Ticket className="h-3 w-3 mr-1" />
-                                          Voucher
-                                        </Button>
-                                        {passenger.pagado ? (
-                                          <Badge variant="default" className="text-xs">
-                                            Pagado
-                                          </Badge>
-                                        ) : (
-                                          <>
-                                            <Badge variant="secondary" className="text-xs">
-                                              Pendiente
-                                            </Badge>
-                                            {!trip.archived && (
+                                            <div className="flex items-center gap-4 flex-1">
+                                              {trip.type === "grupal" && (
+                                                <span className="font-medium">Asiento {passenger.numeroAsiento}</span>
+                                              )}
+                                              {trip.type === "aereo" && (
+                                                <span className="font-medium">Asiento {passenger.numeroAsiento}</span>
+                                              )}
+                                              {trip.type === "crucero" && (
+                                                <span className="font-medium">Cabina {passenger.numeroCabina}</span>
+                                              )}
+                                              <div className="flex flex-col">
+                                                <span className="text-muted-foreground">{client?.name}</span>
+                                                <div className="text-xs">
+                                                  {(() => {
+                                                    const balanceInfo = getPassengerBalance(passenger.clientId, trip.id)
+                                                    const balanceColor =
+                                                      balanceInfo.balance === 0
+                                                        ? "text-green-600"
+                                                        : balanceInfo.balance > 0
+                                                          ? "text-blue-600"
+                                                          : "text-red-600"
+                                                    return (
+                                                      <span className={balanceColor}>
+                                                        Pagado: {trip.currency === "USD" ? "US$" : "$"}
+                                                        {balanceInfo.totalPaid.toLocaleString()} /{" "}
+                                                        {trip.currency === "USD" ? "US$" : "$"}
+                                                        {balanceInfo.tripAmount.toLocaleString()}
+                                                        {balanceInfo.balance !== 0 && (
+                                                          <span className="ml-2">
+                                                            {balanceInfo.balance > 0
+                                                              ? `(+${trip.currency === "USD" ? "US$" : "$"}${balanceInfo.balance.toLocaleString()})`
+                                                              : `(${trip.currency === "USD" ? "US$" : "$"}${balanceInfo.balance.toLocaleString()})`}
+                                                          </span>
+                                                        )}
+                                                      </span>
+                                                    )
+                                                  })()}
+                                                </div>
+                                              </div>
+                                            </div>
+                                            <div className="flex items-center gap-2 flex-shrink-0">
+                                              {!trip.archived && (trip.type === "grupal" || trip.type === "aereo") && (
+                                                <Button
+                                                  variant="outline"
+                                                  size="sm"
+                                                  className="h-6 px-2 text-xs bg-transparent"
+                                                  onClick={() => openSeatChangeDialog(passenger, trip)}
+                                                  disabled={isLoading}
+                                                >
+                                                  <ArrowRightLeft className="h-3 w-3 mr-1" />
+                                                  Cambiar Asiento
+                                                </Button>
+                                              )}
                                               <Button
                                                 variant="outline"
                                                 size="sm"
                                                 className="h-6 px-2 text-xs bg-transparent"
-                                                onClick={() => {
-                                                  setSelectedTrip(trip)
-                                                  setSelectedPassenger(passenger)
-                                                  setIsPaymentDialogOpen(true)
-                                                }}
-                                                disabled={isLoading}
+                                                onClick={() => printVoucher(passenger, trip)}
                                               >
-                                                <Receipt className="h-3 w-3 mr-1" />
-                                                Cobrar
+                                                <Ticket className="h-3 w-3 mr-1" />
+                                                Voucher
                                               </Button>
-                                            )}
-                                            {!trip.archived && (
-                                              <Button
-                                                variant="outline"
-                                                size="sm"
-                                                className="h-6 px-2 text-xs bg-transparent text-red-600 hover:text-red-700 hover:bg-red-50"
-                                                onClick={() => handleDeletePassenger(passenger.id)}
-                                                disabled={isLoading}
-                                              >
-                                                <Trash2 className="h-3 w-3 mr-1" />
-                                                Eliminar
-                                              </Button>
-                                            )}
-                                          </>
-                                        )}
-                                      </div>
+                                              {passenger.pagado ? (
+                                                <Badge variant="default" className="text-xs">
+                                                  Pagado
+                                                </Badge>
+                                              ) : (
+                                                <>
+                                                  <Badge variant="secondary" className="text-xs">
+                                                    Pendiente
+                                                  </Badge>
+                                                  {!trip.archived && (
+                                                    <Button
+                                                      variant="outline"
+                                                      size="sm"
+                                                      className="h-6 px-2 text-xs bg-transparent"
+                                                      onClick={() => {
+                                                        setSelectedTrip(trip)
+                                                        setSelectedPassenger(passenger)
+                                                        setIsPaymentDialogOpen(true)
+                                                      }}
+                                                      disabled={isLoading}
+                                                    >
+                                                      <Receipt className="h-3 w-3 mr-1" />
+                                                      Cobrar
+                                                    </Button>
+                                                  )}
+                                                  {!trip.archived && (
+                                                    <Button
+                                                      variant="outline"
+                                                      size="sm"
+                                                      className="h-6 px-2 text-xs bg-transparent text-red-600 hover:text-red-700 hover:bg-red-50"
+                                                      onClick={() => handleDeletePassenger(passenger.id)}
+                                                      disabled={isLoading}
+                                                    >
+                                                      <Trash2 className="h-3 w-3 mr-1" />
+                                                      Eliminar
+                                                    </Button>
+                                                  )}
+                                                </>
+                                              )}
+                                            </div>
+                                          </div>
+                                        )
+                                      })}
                                     </div>
-                                  )
-                                })}
-                              </div>
-                            </div>
-                          )}
+                                  </div>
+                                )}
+                                {passengers.length > 0 && (
+                                  <div className="mt-4 p-3 bg-muted/50 rounded-lg">
+                                    <h5 className="font-medium mb-2">Resumen Financiero</h5>
+                                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                                      {(() => {
+                                        const totalExpected = passengers.length * trip.importe
+                                        const totalPaid = passengers.reduce((sum, passenger) => {
+                                          const balanceInfo = getPassengerBalance(passenger.clientId, trip.id)
+                                          return sum + balanceInfo.totalPaid
+                                        }, 0)
+                                        const totalBalance = totalPaid - totalExpected
+
+                                        return (
+                                          <>
+                                            <div>
+                                              <span className="text-muted-foreground">Esperado:</span>
+                                              <div className="font-medium">
+                                                {trip.currency === "USD" ? "US$" : "$"}
+                                                {totalExpected.toLocaleString()}
+                                              </div>
+                                            </div>
+                                            <div>
+                                              <span className="text-muted-foreground">Recaudado:</span>
+                                              <div className="font-medium">
+                                                {trip.currency === "USD" ? "US$" : "$"}
+                                                {totalPaid.toLocaleString()}
+                                              </div>
+                                            </div>
+                                            <div>
+                                              <span className="text-muted-foreground">Pendiente:</span>
+                                              <div
+                                                className={`font-medium ${totalBalance < 0 ? "text-red-600" : "text-green-600"}`}
+                                              >
+                                                {trip.currency === "USD" ? "US$" : "$"}
+                                                {Math.abs(totalBalance).toLocaleString()}
+                                              </div>
+                                            </div>
+                                            <div>
+                                              <span className="text-muted-foreground">Ocupación:</span>
+                                              <div className="font-medium">
+                                                {passengers.length} / {maxCapacity === 999 ? "∞" : maxCapacity}
+                                              </div>
+                                            </div>
+                                          </>
+                                        )
+                                      })()}
+                                    </div>
+                                  </div>
+                                )}
+                              </>
+                            )
+                          })()}
 
                           <div className="flex gap-2 pt-4 border-t">
                             {!trip.archived && availableSeats > 0 && (
