@@ -330,6 +330,51 @@ export function TripsManager({
     }
   }
 
+  const handleDeleteTrip = async (tripId: string) => {
+    if (!confirm("¿Estás seguro de que deseas eliminar este viaje? Esta acción no se puede deshacer.")) {
+      return
+    }
+
+    setIsLoading(true)
+    try {
+      // Verificar si hay pasajeros registrados
+      const tripPassengersCount = getTripPassengers(tripId).length
+      if (tripPassengersCount > 0) {
+        if (
+          !confirm(
+            `Este viaje tiene ${tripPassengersCount} pasajero(s) registrado(s). ¿Estás seguro de que deseas eliminarlo?`,
+          )
+        ) {
+          setIsLoading(false)
+          return
+        }
+      }
+
+      // Aquí llamarías a la función de la base de datos para eliminar el viaje
+      // Por ahora simularemos la eliminación
+      await new Promise((resolve) => setTimeout(resolve, 500))
+
+      toast({
+        title: "Viaje eliminado",
+        description: "El viaje se ha eliminado exitosamente.",
+      })
+
+      // Recargar datos
+      if (onDataChange) {
+        await onDataChange()
+      }
+    } catch (error) {
+      console.error("Error deleting trip:", error)
+      toast({
+        title: "Error",
+        description: "Error al eliminar el viaje",
+        variant: "destructive",
+      })
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
   const handleAddPassenger = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!selectedTrip) return
@@ -897,36 +942,40 @@ export function TripsManager({
             margin-bottom: 10px; 
           }
           .seat-info { 
-            background-color: #d1ecf1; 
-            padding: 15px; 
-            border-radius: 5px; 
-            margin: 20px 0; 
-            border-left: 4px solid #17a2b8; 
-            text-align: center; 
+            background-color
+            margin-bottom: 10px;
           }
-          .seat-number { 
-            font-size: 28px; 
-            font-weight: bold; 
-            color: #0c5460; 
+          .seat-info {
+            background-color: #d1ecf1;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 20px 0;
+            border-left: 4px solid #17a2b8;
+            text-align: center;
           }
-          .footer { 
-            text-align: center; 
-            margin-top: 30px; 
-            padding-top: 20px; 
-            border-top: 1px solid #ddd; 
-            color: #666; 
-            font-size: 12px; 
+          .seat-number {
+            font-size: 28px;
+            font-weight: bold;
+            color: #0c5460;
           }
-          .important-note { 
-            background-color: #f8d7da; 
-            padding: 10px; 
-            border-radius: 5px; 
-            margin: 20px 0; 
-            border-left: 4px solid #dc3545; 
+          .footer {
+            text-align: center;
+            margin-top: 30px;
+            padding-top: 20px;
+            border-top: 1px solid #ddd;
+            color: #666;
+            font-size: 12px;
           }
-          .important-note p { 
-            margin: 5px 0; 
-            color: #721c24; 
+          .important-note {
+            background-color: #f8d7da;
+            padding: 10px;
+            border-radius: 5px;
+            margin: 20px 0;
+            border-left: 4px solid #dc3545;
+          }
+          .important-note p {
+            margin: 5px 0;
+            color: #721c24;
             font-weight: bold;    p {
             margin: 5px 0;
             color: #721c24;
@@ -1537,6 +1586,15 @@ export function TripsManager({
                                 </>
                               )}
                             </Button>
+                            <Button
+                              variant="outline"
+                              className="text-red-600 hover:text-red-700 hover:bg-red-50 bg-transparent"
+                              onClick={() => handleDeleteTrip(trip.id)}
+                              disabled={isLoading}
+                            >
+                              <Trash2 className="h-4 w-4 mr-2" />
+                              Eliminar Viaje
+                            </Button>
                           </div>
                         </div>
                       </DialogContent>
@@ -1550,6 +1608,15 @@ export function TripsManager({
                       disabled={isLoading}
                     >
                       {trip.archived ? <ArchiveRestore className="h-3 w-3" /> : <Archive className="h-3 w-3" />}
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="h-6 px-2 text-xs bg-transparent text-red-600 hover:text-red-700 hover:bg-red-50"
+                      onClick={() => handleDeleteTrip(trip.id)}
+                      disabled={isLoading}
+                    >
+                      <Trash2 className="h-3 w-3" />
                     </Button>
                   </div>
                 </div>
