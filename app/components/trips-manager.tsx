@@ -45,7 +45,14 @@ import {
 import { Progress } from "@/components/ui/progress"
 import Image from "next/image"
 import { useToast } from "@/hooks/use-toast"
-import { createTrip, updateTrip, createTripPassenger, updateTripPassenger, createPayment } from "../actions/database"
+import {
+  createTrip,
+  updateTrip,
+  createTripPassenger,
+  updateTripPassenger,
+  createPayment,
+  deleteTrip,
+} from "../actions/database"
 
 interface TripsManagerProps {
   trips: Trip[]
@@ -350,9 +357,8 @@ export function TripsManager({
         }
       }
 
-      // Aquí llamarías a la función de la base de datos para eliminar el viaje
-      // Por ahora simularemos la eliminación
-      await new Promise((resolve) => setTimeout(resolve, 500))
+      // Llamar a la función real de eliminación de la base de datos
+      await deleteTrip(tripId)
 
       toast({
         title: "Viaje eliminado",
@@ -367,7 +373,7 @@ export function TripsManager({
       console.error("Error deleting trip:", error)
       toast({
         title: "Error",
-        description: "Error al eliminar el viaje",
+        description: error instanceof Error ? error.message : "Error al eliminar el viaje",
         variant: "destructive",
       })
     } finally {
