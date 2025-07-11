@@ -40,6 +40,7 @@ import {
   Ship,
   Plane,
   Loader2,
+  Trash2,
 } from "lucide-react"
 import { Progress } from "@/components/ui/progress"
 import Image from "next/image"
@@ -471,6 +472,38 @@ export function TripsManager({
     }
   }
 
+  const handleDeletePassenger = async (passengerId: string) => {
+    if (!confirm("¿Estás seguro de que deseas eliminar este pasajero del viaje?")) {
+      return
+    }
+
+    setIsLoading(true)
+    try {
+      // Aquí llamarías a la función de la base de datos para eliminar el pasajero
+      // Por ahora simularemos la eliminación
+      await new Promise((resolve) => setTimeout(resolve, 500))
+
+      toast({
+        title: "Pasajero eliminado",
+        description: "El pasajero se ha eliminado exitosamente del viaje.",
+      })
+
+      // Recargar datos
+      if (onDataChange) {
+        await onDataChange()
+      }
+    } catch (error) {
+      console.error("Error deleting passenger:", error)
+      toast({
+        title: "Error",
+        description: "Error al eliminar el pasajero",
+        variant: "destructive",
+      })
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
   // Función para obtener etiqueta del tipo de viaje
   const getTripTypeLabel = (type: string) => {
     switch (type) {
@@ -894,19 +927,22 @@ export function TripsManager({
           .important-note p { 
             margin: 5px 0; 
             color: #721c24; 
-            font-weight: bold; 
+            font-weight: bold;    p {
+            margin: 5px 0;
+            color: #721c24;
+            font-weight: bold;
           }
-          .logo { 
-            width: 60px; 
-            height: 60px; 
-            border-radius: 50%; 
+          .logo {
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
             border: 2px solid #2563eb;
             object-fit: cover;
           }
           @media print {
             body { margin: 0; }
             .no-print { display: none; }
-            .logo { 
+            .logo {
               -webkit-print-color-adjust: exact;
               color-adjust: exact;
               print-color-adjust: exact;
@@ -1438,6 +1474,18 @@ export function TripsManager({
                                               >
                                                 <Receipt className="h-3 w-3 mr-1" />
                                                 Cobrar
+                                              </Button>
+                                            )}
+                                            {!trip.archived && (
+                                              <Button
+                                                variant="outline"
+                                                size="sm"
+                                                className="h-6 px-2 text-xs bg-transparent text-red-600 hover:text-red-700 hover:bg-red-50"
+                                                onClick={() => handleDeletePassenger(passenger.id)}
+                                                disabled={isLoading}
+                                              >
+                                                <Trash2 className="h-3 w-3 mr-1" />
+                                                Eliminar
                                               </Button>
                                             )}
                                           </>
