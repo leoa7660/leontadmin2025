@@ -20,28 +20,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea"
 import { Badge } from "@/components/ui/badge"
 import type { Bus, Client, Trip, TripPassenger, Payment } from "../page"
-import {
-  Plus,
-  MapPin,
-  Calendar,
-  DollarSign,
-  UserPlus,
-  Receipt,
-  Printer,
-  Eye,
-  Edit,
-  ArrowRightLeft,
-  Archive,
-  ArchiveRestore,
-  Ticket,
-  ImageIcon,
-  Car,
-  Users,
-  Ship,
-  Plane,
-  Loader2,
-  Trash2,
-} from "lucide-react"
+import { Plus, MapPin, Calendar, DollarSign, UserPlus, Receipt, Printer, Eye, Edit, ArrowRightLeft, Archive, ArchiveRestore, Ticket, ImageIcon, Car, Users, Ship, Plane, Loader2, Trash2 } from 'lucide-react'
 import { Progress } from "@/components/ui/progress"
 import Image from "next/image"
 import { useToast } from "@/hooks/use-toast"
@@ -947,12 +926,6 @@ export function TripsManager({
             text-align: center; 
             margin-bottom: 10px; 
           }
-            font-size: 18px; 
-            font-weight: bold; 
-            color: #856404; 
-            text-align: center; 
-            margin-bottom: 10px; 
-          }
 
             color: #856404;
             text-align: center;
@@ -1492,7 +1465,16 @@ export function TripsManager({
                                       {trip.type === "individual" ? "Cliente" : "Pasajeros Registrados"}
                                     </h4>
                                     <div className="space-y-2 max-h-40 overflow-y-auto">
-                                      {passengers.map((passenger) => {
+                                      {passengers
+                                        .sort((a, b) => {
+                                          // Para cruceros, ordenar por número de cabina (string)
+                                          if (selectedTrip?.type === "crucero") {
+                                            return (a.numeroCabina || "").localeCompare(b.numeroCabina || "")
+                                          }
+                                          // Para otros tipos, ordenar por número de asiento (número)
+                                          return (a.numeroAsiento || 0) - (b.numeroAsiento || 0)
+                                        })
+                                        .map((passenger) => {
                                         const client = clients.find((c) => c.id === passenger.clientId)
                                         return (
                                           <div
