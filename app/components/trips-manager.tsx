@@ -31,6 +31,7 @@ import {
   updateTripPassenger,
   createPayment,
   deleteTrip,
+  deleteTripPassenger,
 } from "../actions/database"
 
 interface TripsManagerProps {
@@ -509,9 +510,8 @@ export function TripsManager({
 
     setIsLoading(true)
     try {
-      // Aquí llamarías a la función de la base de datos para eliminar el pasajero
-      // Por ahora simularemos la eliminación
-      await new Promise((resolve) => setTimeout(resolve, 500))
+      // Llamar a la función real de eliminación de la base de datos
+      await deleteTripPassenger(passengerId)
 
       toast({
         title: "Pasajero eliminado",
@@ -526,7 +526,7 @@ export function TripsManager({
       console.error("Error deleting passenger:", error)
       toast({
         title: "Error",
-        description: "Error al eliminar el pasajero",
+        description: error instanceof Error ? error.message : "Error al eliminar el pasajero",
         variant: "destructive",
       })
     } finally {
@@ -929,10 +929,6 @@ export function TripsManager({
 
             color: #856404;
             text-align: center;
-            margin-bottom: 10px;
-          }
-          .seat-info {
-            background-color
             margin-bottom: 10px;
           }
           .seat-info {
