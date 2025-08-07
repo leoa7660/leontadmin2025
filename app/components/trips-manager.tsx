@@ -7,11 +7,13 @@ import { Label } from '@/components/ui/label'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Badge } from '@/components/ui/badge'
+import { Separator } from '@/components/ui/separator'
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog'
 import { Textarea } from '@/components/ui/textarea'
 import { toast } from '@/hooks/use-toast'
-import { Plane, Ship, Bus, Users, Calendar, MapPin, DollarSign, FileDown, Trash2, Edit, Plus, UserPlus, Printer } from 'lucide-react'
+import { Plane, Ship, Bus, Users, Calendar, MapPin, DollarSign, FileDown, Trash2, Edit, Plus, UserPlus, Printer, Eye } from 'lucide-react'
 import * as XLSX from 'xlsx'
 import jsPDF from 'jspdf'
 import { 
@@ -77,26 +79,26 @@ interface TripsManagerProps {
 export function TripsManager({ trips, onDataChange }: TripsManagerProps) {
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false)
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
-  const [isPassengerDialogOpen, setIsPassengerDialogOpen] = useState(false)
+  const [isDetailsDialogOpen, setIsDetailsDialogOpen] = useState(false)
+  const [isAddPassengerDialogOpen, setIsAddPassengerDialogOpen] = useState(false)
   const [selectedTrip, setSelectedTrip] = useState<Trip | null>(null)
   const [tripPassengers, setTripPassengers] = useState<TripPassenger[]>([])
   const [clients, setClients] = useState<Client[]>([])
   const [buses, setBuses] = useState<Bus[]>([])
   const [loading, setLoading] = useState(false)
 
-  const [newTrip, setNewTrip] = useState({
+  const [formData, setFormData] = useState({
     destino: '',
     fechaSalida: '',
     fechaRegreso: '',
-    importe: 0,
+    importe: '',
     currency: 'ARS' as 'ARS' | 'USD',
     type: 'individual' as Trip['type'],
     descripcion: '',
-    busId: '',
-    archived: false
+    busId: ''
   })
 
-  const [newPassenger, setNewPassenger] = useState({
+  const [passengerFormData, setPassengerFormData] = useState({
     clientId: '',
     numeroAsiento: '',
     numeroCabina: '',
@@ -141,7 +143,21 @@ export function TripsManager({ trips, onDataChange }: TripsManagerProps) {
       setLoading(true)
       const allPassengers = await getTripPassengers()
       const filteredPassengers = allPassengers.filter(p => p.tripId === tripId)
-      setTripPassengers(filteredPassengers)
+      
+      // Ordenar pasajeros por número de asiento/cabina
+      const sortedPassengers = filteredPassengers.sort((a, b) => {
+        if (selectedTrip?.type === 'crucero') {
+          const cabinA = a.numeroCabina || ''
+          const cabinB = b.numeroCabina || ''
+          return cabinA.localeCompare(cabinB)
+        } else {
+          const seatA = a.numeroAsiento || 0
+          const seatB = b.numeroAsiento || 0
+          return seatA - seatB
+        }
+      })
+      
+      setTripPassengers(sortedPassengers)
     } catch (error) {
       console.error('Error loading trip passengers:', error)
       toast({
@@ -154,39 +170,32 @@ export function TripsManager({ trips, onDataChange }: TripsManagerProps) {
     }
   }
 
-  const handleCreateTrip = async () => {
+  const handleCreateTrip = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setLoading(true)
+
     try {
-      setLoading(true)
       await createTrip({
-        destino: newTrip.destino,
-        fechaSalida: new Date(newTrip.fechaSalida),
-        fechaRegreso: new Date(newTrip.fechaRegreso),
-        importe: newTrip.importe,
-        currency: newTrip.currency,
-        type: newTrip.type,
-        descripcion: newTrip.descripcion,
-        busId: newTrip.busId || undefined,
+        destino: formData.destino,
+        fechaSalida: new Date(formData.fechaSalida),
+        fechaRegreso: new Date(formData.fechaRegreso),
+        importe: parseFloat(formData.importe),
+        currency: formData.currency,
+        type: formData.type,
+        descripcion: formData.descripcion,
+        busId: formData.busId || undefined,
         archived: false
       })
-      setNewTrip({
-        destino: '',
-        fechaSalida: '',
-        fechaRegreso: '',
-        importe: 0,
-        currency: 'ARS',
-        type: 'individual',
-        descripcion: '',
-        busId: '',
-        archived: false
-      })
-      setIsCreateDialogOpen(false)
-      onDataChange()
+
       toast({
         title: "Éxito",
         description: "Viaje creado correctamente"
       })
+
+      setIsCreateDialogOpen(false)
+      resetForm()
+      onDataChange()
     } catch (error) {
-      console.error('Error creating trip:', error)
       toast({
         title: "Error",
         description: "No se pudo crear el viaje",
@@ -197,30 +206,33 @@ export function TripsManager({ trips, onDataChange }: TripsManagerProps) {
     }
   }
 
-  const handleEditTrip = async () => {
+  const handleUpdateTrip = async (e: React.FormEvent) => {
+    e.preventDefault()
     if (!selectedTrip) return
-    
+
+    setLoading(true)
+
     try {
-      setLoading(true)
       await updateTrip(selectedTrip.id, {
-        destino: newTrip.destino,
-        fechaSalida: new Date(newTrip.fechaSalida),
-        fechaRegreso: new Date(newTrip.fechaRegreso),
-        importe: newTrip.importe,
-        currency: newTrip.currency,
-        type: newTrip.type,
-        descripcion: newTrip.descripcion,
-        busId: newTrip.busId || undefined
+        destino: formData.destino,
+        fechaSalida: new Date(formData.fechaSalida),
+        fechaRegreso: new Date(formData.fechaRegreso),
+        importe: parseFloat(formData.importe),
+        currency: formData.currency,
+        type: formData.type,
+        descripcion: formData.descripcion,
+        busId: formData.busId || undefined
       })
-      setIsEditDialogOpen(false)
-      setSelectedTrip(null)
-      onDataChange()
+
       toast({
         title: "Éxito",
         description: "Viaje actualizado correctamente"
       })
+
+      setIsEditDialogOpen(false)
+      resetForm()
+      onDataChange()
     } catch (error) {
-      console.error('Error updating trip:', error)
       toast({
         title: "Error",
         description: "No se pudo actualizar el viaje",
@@ -232,53 +244,46 @@ export function TripsManager({ trips, onDataChange }: TripsManagerProps) {
   }
 
   const handleDeleteTrip = async (tripId: string) => {
-    if (!confirm('¿Estás seguro de que quieres eliminar este viaje?')) return
-    
     try {
-      setLoading(true)
       await deleteTrip(tripId)
-      onDataChange()
       toast({
         title: "Éxito",
         description: "Viaje eliminado correctamente"
       })
+      onDataChange()
     } catch (error) {
-      console.error('Error deleting trip:', error)
       toast({
         title: "Error",
         description: "No se pudo eliminar el viaje",
         variant: "destructive"
       })
-    } finally {
-      setLoading(false)
     }
   }
 
-  const handleAddPassenger = async () => {
+  const handleAddPassenger = async (e: React.FormEvent) => {
+    e.preventDefault()
     if (!selectedTrip) return
-    
+
+    setLoading(true)
+
     try {
-      setLoading(true)
       await createTripPassenger({
         tripId: selectedTrip.id,
-        clientId: newPassenger.clientId,
-        numeroAsiento: selectedTrip.type !== 'crucero' ? parseInt(newPassenger.numeroAsiento) || 0 : 0,
-        numeroCabina: selectedTrip.type === 'crucero' ? newPassenger.numeroCabina : undefined,
-        pagado: newPassenger.pagado
+        clientId: passengerFormData.clientId,
+        numeroAsiento: selectedTrip.type !== 'crucero' ? parseInt(passengerFormData.numeroAsiento) || 0 : 0,
+        numeroCabina: selectedTrip.type === 'crucero' ? passengerFormData.numeroCabina : undefined,
+        pagado: passengerFormData.pagado
       })
-      setNewPassenger({
-        clientId: '',
-        numeroAsiento: '',
-        numeroCabina: '',
-        pagado: false
-      })
-      await loadTripPassengers(selectedTrip.id)
+
       toast({
         title: "Éxito",
-        description: "Pasajero agregado al viaje"
+        description: "Pasajero agregado correctamente"
       })
+
+      setIsAddPassengerDialogOpen(false)
+      resetPassengerForm()
+      loadTripPassengers(selectedTrip.id)
     } catch (error) {
-      console.error('Error adding passenger:', error)
       toast({
         title: "Error",
         description: "No se pudo agregar el pasajero",
@@ -290,50 +295,22 @@ export function TripsManager({ trips, onDataChange }: TripsManagerProps) {
   }
 
   const handleDeletePassenger = async (passengerId: string) => {
-    if (!confirm('¿Estás seguro de que quieres eliminar este pasajero del viaje?')) return
-    
     try {
-      setLoading(true)
       await deleteTripPassenger(passengerId)
-      if (selectedTrip) {
-        await loadTripPassengers(selectedTrip.id)
-      }
       toast({
         title: "Éxito",
-        description: "Pasajero eliminado del viaje"
+        description: "Pasajero eliminado correctamente"
       })
+      if (selectedTrip) {
+        loadTripPassengers(selectedTrip.id)
+      }
     } catch (error) {
-      console.error('Error deleting passenger:', error)
       toast({
         title: "Error",
         description: "No se pudo eliminar el pasajero",
         variant: "destructive"
       })
-    } finally {
-      setLoading(false)
     }
-  }
-
-  const openEditDialog = (trip: Trip) => {
-    setSelectedTrip(trip)
-    setNewTrip({
-      destino: trip.destino,
-      fechaSalida: trip.fechaSalida.toISOString().split('T')[0],
-      fechaRegreso: trip.fechaRegreso.toISOString().split('T')[0],
-      importe: trip.importe,
-      currency: trip.currency,
-      type: trip.type,
-      descripcion: trip.descripcion || '',
-      busId: trip.busId || '',
-      archived: trip.archived
-    })
-    setIsEditDialogOpen(true)
-  }
-
-  const openPassengerDialog = (trip: Trip) => {
-    setSelectedTrip(trip)
-    loadTripPassengers(trip.id)
-    setIsPassengerDialogOpen(true)
   }
 
   const exportToExcel = () => {
@@ -348,25 +325,53 @@ export function TripsManager({ trips, onDataChange }: TripsManagerProps) {
 
     const data = tripPassengers.map(passenger => {
       const client = clients.find(c => c.id === passenger.clientId)
+      const fullName = client?.name || ''
+      const nameParts = fullName.trim().split(' ')
+      const lastName = nameParts.length > 1 ? nameParts.slice(-1).join(' ') : ''
+      const firstName = nameParts.length > 1 ? nameParts.slice(0, -1).join(' ') : fullName
+
       return {
-        'Nombre': client?.name || '',
-        'Email': client?.email || '',
+        'Apellido': lastName,
+        'Nombre': firstName,
+        'Fecha de Nacimiento': client?.fechaNacimiento ? 
+          client.fechaNacimiento.toLocaleDateString('es-ES') : '',
+        'Número de Documento': client?.dni || '',
         'Teléfono': client?.phone || '',
-        'Documento': client?.dni || '',
-        'Fecha Nacimiento': client?.fechaNacimiento ? client.fechaNacimiento.toLocaleDateString('es-ES') : '',
-        'Asiento/Cabina': selectedTrip.type === 'crucero' ? passenger.numeroCabina : passenger.numeroAsiento,
-        'Estado Pago': passenger.pagado ? 'Pagado' : 'Pendiente'
+        'Email': client?.email || '',
+        [selectedTrip.type === 'crucero' ? 'Cabina' : 'Asiento']: 
+          selectedTrip.type === 'crucero' ? 
+          (passenger.numeroCabina || '') : 
+          (passenger.numeroAsiento?.toString() || ''),
+        'Estado de Pago': passenger.pagado ? 'Pagado' : 'Pendiente',
+        'Fecha de Reserva': passenger.fechaReserva.toLocaleDateString('es-ES')
       }
     })
 
     const ws = XLSX.utils.json_to_sheet(data)
     const wb = XLSX.utils.book_new()
+    
+    // Ajustar el ancho de las columnas
+    const colWidths = [
+      { wch: 20 }, // Apellido
+      { wch: 20 }, // Nombre
+      { wch: 18 }, // Fecha de Nacimiento
+      { wch: 15 }, // Número de Documento
+      { wch: 15 }, // Teléfono
+      { wch: 25 }, // Email
+      { wch: 10 }, // Asiento/Cabina
+      { wch: 15 }, // Estado de Pago
+      { wch: 15 }  // Fecha de Reserva
+    ]
+    ws['!cols'] = colWidths
+
     XLSX.utils.book_append_sheet(wb, ws, 'Pasajeros')
-    XLSX.writeFile(wb, `pasajeros_${selectedTrip.destino}_${new Date().toISOString().split('T')[0]}.xlsx`)
+    const departureDate = selectedTrip.fechaSalida.toLocaleDateString('es-ES').replace(/\//g, '-')
+    const fileName = `Pasajeros_${selectedTrip.destino}_${departureDate}.xlsx`
+    XLSX.writeFile(wb, fileName)
     
     toast({
       title: "Éxito",
-      description: "Lista de pasajeros exportada correctamente"
+      description: `Lista de pasajeros exportada como ${fileName}`
     })
   }
 
@@ -491,31 +496,74 @@ export function TripsManager({ trips, onDataChange }: TripsManagerProps) {
     }
   }
 
-  const getTripIcon = (tipo: string) => {
-    switch (tipo) {
+  const resetForm = () => {
+    setFormData({
+      destino: '',
+      fechaSalida: '',
+      fechaRegreso: '',
+      importe: '',
+      currency: 'ARS',
+      type: 'individual',
+      descripcion: '',
+      busId: ''
+    })
+    setSelectedTrip(null)
+  }
+
+  const resetPassengerForm = () => {
+    setPassengerFormData({
+      clientId: '',
+      numeroAsiento: '',
+      numeroCabina: '',
+      pagado: false
+    })
+  }
+
+  const openEditDialog = (trip: Trip) => {
+    setSelectedTrip(trip)
+    setFormData({
+      destino: trip.destino,
+      fechaSalida: trip.fechaSalida.toISOString().split('T')[0],
+      fechaRegreso: trip.fechaRegreso.toISOString().split('T')[0],
+      importe: trip.importe.toString(),
+      currency: trip.currency,
+      type: trip.type,
+      descripcion: trip.descripcion || '',
+      busId: trip.busId || ''
+    })
+    setIsEditDialogOpen(true)
+  }
+
+  const openDetailsDialog = (trip: Trip) => {
+    setSelectedTrip(trip)
+    setIsDetailsDialogOpen(true)
+    loadTripPassengers(trip.id)
+  }
+
+  const getTripIcon = (type: string) => {
+    switch (type) {
       case 'aereo': return <Plane className="h-4 w-4" />
       case 'crucero': return <Ship className="h-4 w-4" />
+      case 'individual': return <Bus className="h-4 w-4" />
       case 'grupal': return <Users className="h-4 w-4" />
-      default: return <Bus className="h-4 w-4" />
+      default: return <Plane className="h-4 w-4" />
     }
   }
 
-  const getStatusBadge = (archived: boolean) => {
-    return <Badge variant={archived ? 'secondary' : 'default'}>
-      {archived ? 'Archivado' : 'Activo'}
-    </Badge>
-  }
-
-  const getPaymentStatusBadge = (pagado: boolean) => {
-    return <Badge variant={pagado ? 'default' : 'destructive'}>
-      {pagado ? 'Pagado' : 'Pendiente'}
-    </Badge>
+  const getTripTypeLabel = (type: string) => {
+    switch (type) {
+      case 'aereo': return 'Aéreo'
+      case 'crucero': return 'Crucero'
+      case 'individual': return 'Individual'
+      case 'grupal': return 'Grupal'
+      default: return 'Aéreo'
+    }
   }
 
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
-        <h2 className="text-2xl font-bold">Gestión de Viajes</h2>
+        <h2 className="text-3xl font-bold">Gestión de Viajes</h2>
         <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
           <DialogTrigger asChild>
             <Button>
@@ -527,74 +575,83 @@ export function TripsManager({ trips, onDataChange }: TripsManagerProps) {
             <DialogHeader>
               <DialogTitle>Crear Nuevo Viaje</DialogTitle>
             </DialogHeader>
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <Label htmlFor="destino">Destino</Label>
-                <Input
-                  id="destino"
-                  value={newTrip.destino}
-                  onChange={(e) => setNewTrip({ ...newTrip, destino: e.target.value })}
-                  placeholder="Destino del viaje"
-                />
+            <form onSubmit={handleCreateTrip} className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="destino">Destino</Label>
+                  <Input
+                    id="destino"
+                    value={formData.destino}
+                    onChange={(e) => setFormData({ ...formData, destino: e.target.value })}
+                    required
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="type">Tipo de Viaje</Label>
+                  <Select value={formData.type} onValueChange={(value: Trip['type']) => setFormData({ ...formData, type: value })}>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="aereo">Aéreo</SelectItem>
+                      <SelectItem value="crucero">Crucero</SelectItem>
+                      <SelectItem value="individual">Individual</SelectItem>
+                      <SelectItem value="grupal">Grupal</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
-              <div>
-                <Label htmlFor="type">Tipo de Viaje</Label>
-                <Select value={newTrip.type} onValueChange={(value: Trip['type']) => setNewTrip({ ...newTrip, type: value })}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="individual">Individual</SelectItem>
-                    <SelectItem value="grupal">Grupal</SelectItem>
-                    <SelectItem value="aereo">Aéreo</SelectItem>
-                    <SelectItem value="crucero">Crucero</SelectItem>
-                  </SelectContent>
-                </Select>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="fechaSalida">Fecha de Salida</Label>
+                  <Input
+                    id="fechaSalida"
+                    type="date"
+                    value={formData.fechaSalida}
+                    onChange={(e) => setFormData({ ...formData, fechaSalida: e.target.value })}
+                    required
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="fechaRegreso">Fecha de Regreso</Label>
+                  <Input
+                    id="fechaRegreso"
+                    type="date"
+                    value={formData.fechaRegreso}
+                    onChange={(e) => setFormData({ ...formData, fechaRegreso: e.target.value })}
+                    required
+                  />
+                </div>
               </div>
-              <div>
-                <Label htmlFor="fechaSalida">Fecha de Salida</Label>
-                <Input
-                  id="fechaSalida"
-                  type="date"
-                  value={newTrip.fechaSalida}
-                  onChange={(e) => setNewTrip({ ...newTrip, fechaSalida: e.target.value })}
-                />
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="importe">Precio</Label>
+                  <Input
+                    id="importe"
+                    type="number"
+                    step="0.01"
+                    value={formData.importe}
+                    onChange={(e) => setFormData({ ...formData, importe: e.target.value })}
+                    required
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="currency">Moneda</Label>
+                  <Select value={formData.currency} onValueChange={(value: 'ARS' | 'USD') => setFormData({ ...formData, currency: value })}>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="ARS">ARS</SelectItem>
+                      <SelectItem value="USD">USD</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
-              <div>
-                <Label htmlFor="fechaRegreso">Fecha de Regreso</Label>
-                <Input
-                  id="fechaRegreso"
-                  type="date"
-                  value={newTrip.fechaRegreso}
-                  onChange={(e) => setNewTrip({ ...newTrip, fechaRegreso: e.target.value })}
-                />
-              </div>
-              <div>
-                <Label htmlFor="importe">Precio</Label>
-                <Input
-                  id="importe"
-                  type="number"
-                  value={newTrip.importe}
-                  onChange={(e) => setNewTrip({ ...newTrip, importe: parseFloat(e.target.value) || 0 })}
-                  placeholder="0.00"
-                />
-              </div>
-              <div>
-                <Label htmlFor="currency">Moneda</Label>
-                <Select value={newTrip.currency} onValueChange={(value: 'ARS' | 'USD') => setNewTrip({ ...newTrip, currency: value })}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="ARS">ARS</SelectItem>
-                    <SelectItem value="USD">USD</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              {newTrip.type === 'grupal' && (
+              {formData.type === 'grupal' && (
                 <div>
                   <Label htmlFor="busId">Bus</Label>
-                  <Select value={newTrip.busId} onValueChange={(value) => setNewTrip({ ...newTrip, busId: value })}>
+                  <Select value={formData.busId} onValueChange={(value) => setFormData({ ...formData, busId: value })}>
                     <SelectTrigger>
                       <SelectValue placeholder="Seleccionar bus" />
                     </SelectTrigger>
@@ -608,47 +665,67 @@ export function TripsManager({ trips, onDataChange }: TripsManagerProps) {
                   </Select>
                 </div>
               )}
-              <div className="col-span-2">
+              <div>
                 <Label htmlFor="descripcion">Descripción</Label>
                 <Textarea
                   id="descripcion"
-                  value={newTrip.descripcion}
-                  onChange={(e) => setNewTrip({ ...newTrip, descripcion: e.target.value })}
-                  placeholder="Descripción del viaje (opcional)"
+                  value={formData.descripcion}
+                  onChange={(e) => setFormData({ ...formData, descripcion: e.target.value })}
                 />
               </div>
-            </div>
-            <div className="flex justify-end space-x-2 mt-4">
-              <Button variant="outline" onClick={() => setIsCreateDialogOpen(false)}>
-                Cancelar
-              </Button>
-              <Button onClick={handleCreateTrip} disabled={loading}>
-                {loading ? 'Creando...' : 'Crear Viaje'}
-              </Button>
-            </div>
+              <div className="flex justify-end space-x-2">
+                <Button type="button" variant="outline" onClick={() => setIsCreateDialogOpen(false)}>
+                  Cancelar
+                </Button>
+                <Button type="submit" disabled={loading}>
+                  {loading ? 'Creando...' : 'Crear Viaje'}
+                </Button>
+              </div>
+            </form>
           </DialogContent>
         </Dialog>
       </div>
 
-      <div className="grid gap-4">
+      {/* Grid de tarjetas de viajes - Diseño anterior restaurado */}
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
         {trips.filter(trip => !trip.archived).map((trip) => (
-          <Card key={trip.id}>
-            <CardHeader>
-              <div className="flex justify-between items-start">
+          <Card key={trip.id} className="hover:shadow-lg transition-shadow">
+            <CardHeader className="pb-3">
+              <div className="flex items-center justify-between">
                 <div className="flex items-center space-x-2">
                   {getTripIcon(trip.type)}
                   <CardTitle className="text-lg">{trip.destino}</CardTitle>
-                  {getStatusBadge(trip.archived)}
                 </div>
-                <div className="flex space-x-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => openPassengerDialog(trip)}
-                  >
-                    <UserPlus className="h-4 w-4 mr-1" />
-                    Pasajeros
-                  </Button>
+                <Badge variant="secondary">
+                  {getTripTypeLabel(trip.type)}
+                </Badge>
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <div className="flex items-center text-sm text-muted-foreground">
+                <Calendar className="h-4 w-4 mr-2" />
+                {trip.fechaSalida.toLocaleDateString('es-ES')} - {trip.fechaRegreso.toLocaleDateString('es-ES')}
+              </div>
+              <div className="flex items-center text-sm text-muted-foreground">
+                <DollarSign className="h-4 w-4 mr-2" />
+                {trip.currency} ${trip.importe.toLocaleString()}
+              </div>
+              {trip.descripcion && (
+                <p className="text-sm text-muted-foreground line-clamp-2">
+                  {trip.descripcion}
+                </p>
+              )}
+              <Separator />
+              <div className="flex justify-between">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => openDetailsDialog(trip)}
+                >
+                  <Eye className="h-4 w-4 mr-1" />
+                  Ver
+                </Button>
+                <div className="space-x-1">
                   <Button
                     variant="outline"
                     size="sm"
@@ -656,117 +733,117 @@ export function TripsManager({ trips, onDataChange }: TripsManagerProps) {
                   >
                     <Edit className="h-4 w-4" />
                   </Button>
-                  <Button
-                    variant="destructive"
-                    size="sm"
-                    onClick={() => handleDeleteTrip(trip.id)}
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
+                  <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                      <Button variant="outline" size="sm">
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>¿Eliminar viaje?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                          Esta acción no se puede deshacer. Se eliminará permanentemente el viaje "{trip.destino}".
+                        </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                        <AlertDialogAction onClick={() => handleDeleteTrip(trip.id)}>
+                          Eliminar
+                        </AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
                 </div>
               </div>
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-                <div className="flex items-center space-x-2">
-                  <Calendar className="h-4 w-4 text-muted-foreground" />
-                  <span>Salida: {trip.fechaSalida.toLocaleDateString('es-ES')}</span>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <Calendar className="h-4 w-4 text-muted-foreground" />
-                  <span>Regreso: {trip.fechaRegreso.toLocaleDateString('es-ES')}</span>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <DollarSign className="h-4 w-4 text-muted-foreground" />
-                  <span>{trip.currency} ${trip.importe.toLocaleString()}</span>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <Users className="h-4 w-4 text-muted-foreground" />
-                  <span>Tipo: {trip.type}</span>
-                </div>
-              </div>
-              {trip.descripcion && (
-                <p className="text-sm text-muted-foreground mt-2">{trip.descripcion}</p>
-              )}
             </CardContent>
           </Card>
         ))}
       </div>
 
-      {/* Edit Trip Dialog */}
+      {/* Dialog para editar viaje */}
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
         <DialogContent className="max-w-2xl">
           <DialogHeader>
             <DialogTitle>Editar Viaje</DialogTitle>
           </DialogHeader>
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <Label htmlFor="edit_destino">Destino</Label>
-              <Input
-                id="edit_destino"
-                value={newTrip.destino}
-                onChange={(e) => setNewTrip({ ...newTrip, destino: e.target.value })}
-                placeholder="Destino del viaje"
-              />
+          <form onSubmit={handleUpdateTrip} className="space-y-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="edit_destino">Destino</Label>
+                <Input
+                  id="edit_destino"
+                  value={formData.destino}
+                  onChange={(e) => setFormData({ ...formData, destino: e.target.value })}
+                  required
+                />
+              </div>
+              <div>
+                <Label htmlFor="edit_type">Tipo de Viaje</Label>
+                <Select value={formData.type} onValueChange={(value: Trip['type']) => setFormData({ ...formData, type: value })}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="aereo">Aéreo</SelectItem>
+                    <SelectItem value="crucero">Crucero</SelectItem>
+                    <SelectItem value="individual">Individual</SelectItem>
+                    <SelectItem value="grupal">Grupal</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
-            <div>
-              <Label htmlFor="edit_type">Tipo de Viaje</Label>
-              <Select value={newTrip.type} onValueChange={(value: Trip['type']) => setNewTrip({ ...newTrip, type: value })}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="individual">Individual</SelectItem>
-                  <SelectItem value="grupal">Grupal</SelectItem>
-                  <SelectItem value="aereo">Aéreo</SelectItem>
-                  <SelectItem value="crucero">Crucero</SelectItem>
-                </SelectContent>
-              </Select>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="edit_fechaSalida">Fecha de Salida</Label>
+                <Input
+                  id="edit_fechaSalida"
+                  type="date"
+                  value={formData.fechaSalida}
+                  onChange={(e) => setFormData({ ...formData, fechaSalida: e.target.value })}
+                  required
+                />
+              </div>
+              <div>
+                <Label htmlFor="edit_fechaRegreso">Fecha de Regreso</Label>
+                <Input
+                  id="edit_fechaRegreso"
+                  type="date"
+                  value={formData.fechaRegreso}
+                  onChange={(e) => setFormData({ ...formData, fechaRegreso: e.target.value })}
+                  required
+                />
+              </div>
             </div>
-            <div>
-              <Label htmlFor="edit_fechaSalida">Fecha de Salida</Label>
-              <Input
-                id="edit_fechaSalida"
-                type="date"
-                value={newTrip.fechaSalida}
-                onChange={(e) => setNewTrip({ ...newTrip, fechaSalida: e.target.value })}
-              />
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="edit_importe">Precio</Label>
+                <Input
+                  id="edit_importe"
+                  type="number"
+                  step="0.01"
+                  value={formData.importe}
+                  onChange={(e) => setFormData({ ...formData, importe: e.target.value })}
+                  required
+                />
+              </div>
+              <div>
+                <Label htmlFor="edit_currency">Moneda</Label>
+                <Select value={formData.currency} onValueChange={(value: 'ARS' | 'USD') => setFormData({ ...formData, currency: value })}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="ARS">ARS</SelectItem>
+                    <SelectItem value="USD">USD</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
-            <div>
-              <Label htmlFor="edit_fechaRegreso">Fecha de Regreso</Label>
-              <Input
-                id="edit_fechaRegreso"
-                type="date"
-                value={newTrip.fechaRegreso}
-                onChange={(e) => setNewTrip({ ...newTrip, fechaRegreso: e.target.value })}
-              />
-            </div>
-            <div>
-              <Label htmlFor="edit_importe">Precio</Label>
-              <Input
-                id="edit_importe"
-                type="number"
-                value={newTrip.importe}
-                onChange={(e) => setNewTrip({ ...newTrip, importe: parseFloat(e.target.value) || 0 })}
-                placeholder="0.00"
-              />
-            </div>
-            <div>
-              <Label htmlFor="edit_currency">Moneda</Label>
-              <Select value={newTrip.currency} onValueChange={(value: 'ARS' | 'USD') => setNewTrip({ ...newTrip, currency: value })}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="ARS">ARS</SelectItem>
-                  <SelectItem value="USD">USD</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            {newTrip.type === 'grupal' && (
+            {formData.type === 'grupal' && (
               <div>
                 <Label htmlFor="edit_busId">Bus</Label>
-                <Select value={newTrip.busId} onValueChange={(value) => setNewTrip({ ...newTrip, busId: value })}>
+                <Select value={formData.busId} onValueChange={(value) => setFormData({ ...formData, busId: value })}>
                   <SelectTrigger>
                     <SelectValue placeholder="Seleccionar bus" />
                   </SelectTrigger>
@@ -780,168 +857,225 @@ export function TripsManager({ trips, onDataChange }: TripsManagerProps) {
                 </Select>
               </div>
             )}
-            <div className="col-span-2">
+            <div>
               <Label htmlFor="edit_descripcion">Descripción</Label>
               <Textarea
                 id="edit_descripcion"
-                value={newTrip.descripcion}
-                onChange={(e) => setNewTrip({ ...newTrip, descripcion: e.target.value })}
-                placeholder="Descripción del viaje (opcional)"
+                value={formData.descripcion}
+                onChange={(e) => setFormData({ ...formData, descripcion: e.target.value })}
               />
             </div>
-          </div>
-          <div className="flex justify-end space-x-2 mt-4">
-            <Button variant="outline" onClick={() => setIsEditDialogOpen(false)}>
-              Cancelar
-            </Button>
-            <Button onClick={handleEditTrip} disabled={loading}>
-              {loading ? 'Actualizando...' : 'Actualizar Viaje'}
-            </Button>
-          </div>
+            <div className="flex justify-end space-x-2">
+              <Button type="button" variant="outline" onClick={() => setIsEditDialogOpen(false)}>
+                Cancelar
+              </Button>
+              <Button type="submit" disabled={loading}>
+                {loading ? 'Actualizando...' : 'Actualizar Viaje'}
+              </Button>
+            </div>
+          </form>
         </DialogContent>
       </Dialog>
 
-      {/* Passengers Dialog */}
-      <Dialog open={isPassengerDialogOpen} onOpenChange={setIsPassengerDialogOpen}>
+      {/* Dialog para ver detalles del viaje */}
+      <Dialog open={isDetailsDialogOpen} onOpenChange={setIsDetailsDialogOpen}>
         <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
           <DialogHeader>
-            <div className="flex justify-between items-center">
-              <DialogTitle>
-                Pasajeros - {selectedTrip?.destino}
-              </DialogTitle>
-              <div className="flex space-x-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={generatePDF}
-                  disabled={tripPassengers.length === 0}
-                >
-                  <Printer className="h-4 w-4 mr-1" />
-                  Imprimir PDF
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={exportToExcel}
-                  disabled={tripPassengers.length === 0}
-                >
-                  <FileDown className="h-4 w-4 mr-1" />
-                  Exportar Excel
-                </Button>
-              </div>
-            </div>
+            <DialogTitle className="flex items-center space-x-2">
+              {selectedTrip && getTripIcon(selectedTrip.type)}
+              <span>Detalles del Viaje: {selectedTrip?.destino}</span>
+            </DialogTitle>
           </DialogHeader>
-          
-          {/* Add Passenger Form */}
-          <div className="border rounded-lg p-4 mb-4">
-            <h3 className="font-semibold mb-3">Agregar Pasajero</h3>
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <Label htmlFor="passenger_client">Cliente</Label>
-                <Select value={newPassenger.clientId} onValueChange={(value) => setNewPassenger({ ...newPassenger, clientId: value })}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Seleccionar cliente" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {clients.map((client) => (
-                      <SelectItem key={client.id} value={client.id}>
-                        {client.name} - {client.dni}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div>
-                <Label htmlFor="passenger_asiento">
-                  {selectedTrip?.type === 'crucero' ? 'Cabina' : 'Asiento'}
-                </Label>
-                {selectedTrip?.type === 'crucero' ? (
-                  <Input
-                    id="passenger_asiento"
-                    value={newPassenger.numeroCabina}
-                    onChange={(e) => setNewPassenger({ ...newPassenger, numeroCabina: e.target.value })}
-                    placeholder="Ej: A101"
-                  />
-                ) : (
-                  <Input
-                    id="passenger_asiento"
-                    value={newPassenger.numeroAsiento}
-                    onChange={(e) => setNewPassenger({ ...newPassenger, numeroAsiento: e.target.value })}
-                    placeholder="Ej: 12"
-                  />
+          {selectedTrip && (
+            <Tabs defaultValue="info" className="w-full">
+              <TabsList className="grid w-full grid-cols-2">
+                <TabsTrigger value="info">Información</TabsTrigger>
+                <TabsTrigger value="passengers">Pasajeros ({tripPassengers.length})</TabsTrigger>
+              </TabsList>
+              <TabsContent value="info" className="space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label>Destino</Label>
+                    <p className="text-sm font-medium">{selectedTrip.destino}</p>
+                  </div>
+                  <div>
+                    <Label>Tipo de Viaje</Label>
+                    <p className="text-sm font-medium">{getTripTypeLabel(selectedTrip.type)}</p>
+                  </div>
+                  <div>
+                    <Label>Fecha de Salida</Label>
+                    <p className="text-sm font-medium">{selectedTrip.fechaSalida.toLocaleDateString('es-ES')}</p>
+                  </div>
+                  <div>
+                    <Label>Fecha de Regreso</Label>
+                    <p className="text-sm font-medium">{selectedTrip.fechaRegreso.toLocaleDateString('es-ES')}</p>
+                  </div>
+                  <div>
+                    <Label>Precio</Label>
+                    <p className="text-sm font-medium">{selectedTrip.currency} ${selectedTrip.importe.toLocaleString()}</p>
+                  </div>
+                </div>
+                {selectedTrip.descripcion && (
+                  <div>
+                    <Label>Descripción</Label>
+                    <p className="text-sm">{selectedTrip.descripcion}</p>
+                  </div>
                 )}
-              </div>
-              <div>
-                <Label htmlFor="passenger_pagado">Estado de Pago</Label>
-                <Select value={newPassenger.pagado ? 'paid' : 'pending'} onValueChange={(value) => setNewPassenger({ ...newPassenger, pagado: value === 'paid' })}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="pending">Pendiente</SelectItem>
-                    <SelectItem value="paid">Pagado</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-            <div className="flex justify-end mt-4">
-              <Button onClick={handleAddPassenger} disabled={loading || !newPassenger.clientId}>
-                {loading ? 'Agregando...' : 'Agregar Pasajero'}
-              </Button>
-            </div>
-          </div>
-
-          {/* Passengers Table */}
-          <div>
-            <h3 className="font-semibold mb-3">Lista de Pasajeros ({tripPassengers.length})</h3>
-            {tripPassengers.length > 0 ? (
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Cliente</TableHead>
-                    <TableHead>Documento</TableHead>
-                    <TableHead>Fecha Nacimiento</TableHead>
-                    <TableHead>{selectedTrip?.type === 'crucero' ? 'Cabina' : 'Asiento'}</TableHead>
-                    <TableHead>Estado Pago</TableHead>
-                    <TableHead>Acciones</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {tripPassengers.map((passenger) => {
-                    const client = clients.find(c => c.id === passenger.clientId)
-                    return (
-                      <TableRow key={passenger.id}>
-                        <TableCell>{client?.name || 'Cliente no encontrado'}</TableCell>
-                        <TableCell>{client?.dni || '-'}</TableCell>
-                        <TableCell>
-                          {client?.fechaNacimiento ? client.fechaNacimiento.toLocaleDateString('es-ES') : '-'}
-                        </TableCell>
-                        <TableCell>
-                          {selectedTrip?.type === 'crucero' ? passenger.numeroCabina : passenger.numeroAsiento || '-'}
-                        </TableCell>
-                        <TableCell>
-                          {getPaymentStatusBadge(passenger.pagado)}
-                        </TableCell>
-                        <TableCell>
-                          <Button
-                            variant="destructive"
-                            size="sm"
-                            onClick={() => handleDeletePassenger(passenger.id)}
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </TableCell>
-                      </TableRow>
-                    )
-                  })}
-                </TableBody>
-              </Table>
-            ) : (
-              <p className="text-muted-foreground text-center py-4">
-                No hay pasajeros registrados para este viaje
-              </p>
-            )}
-          </div>
+              </TabsContent>
+              <TabsContent value="passengers" className="space-y-4">
+                <div className="flex justify-between items-center">
+                  <h3 className="text-lg font-semibold">Lista de Pasajeros</h3>
+                  <div className="space-x-2">
+                    {tripPassengers.length > 0 && (
+                      <>
+                        <Button onClick={generatePDF} variant="outline" size="sm">
+                          <Printer className="h-4 w-4 mr-2" />
+                          Imprimir PDF
+                        </Button>
+                        <Button onClick={exportToExcel} variant="outline" size="sm">
+                          <FileDown className="h-4 w-4 mr-2" />
+                          Exportar Excel
+                        </Button>
+                      </>
+                    )}
+                    <Dialog open={isAddPassengerDialogOpen} onOpenChange={setIsAddPassengerDialogOpen}>
+                      <DialogTrigger asChild>
+                        <Button size="sm">
+                          <UserPlus className="h-4 w-4 mr-2" />
+                          Agregar Pasajero
+                        </Button>
+                      </DialogTrigger>
+                      <DialogContent>
+                        <DialogHeader>
+                          <DialogTitle>Agregar Pasajero</DialogTitle>
+                        </DialogHeader>
+                        <form onSubmit={handleAddPassenger} className="space-y-4">
+                          <div>
+                            <Label htmlFor="clientId">Cliente</Label>
+                            <Select value={passengerFormData.clientId} onValueChange={(value) => setPassengerFormData({ ...passengerFormData, clientId: value })}>
+                              <SelectTrigger>
+                                <SelectValue placeholder="Seleccionar cliente" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {clients.map((client) => (
+                                  <SelectItem key={client.id} value={client.id}>
+                                    {client.name} - {client.dni}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </div>
+                          {selectedTrip.type === 'crucero' ? (
+                            <div>
+                              <Label htmlFor="numeroCabina">Número de Cabina</Label>
+                              <Input
+                                id="numeroCabina"
+                                value={passengerFormData.numeroCabina}
+                                onChange={(e) => setPassengerFormData({ ...passengerFormData, numeroCabina: e.target.value })}
+                                placeholder="Ej: A101, B205"
+                              />
+                            </div>
+                          ) : (
+                            <div>
+                              <Label htmlFor="numeroAsiento">Número de Asiento</Label>
+                              <Input
+                                id="numeroAsiento"
+                                value={passengerFormData.numeroAsiento}
+                                onChange={(e) => setPassengerFormData({ ...passengerFormData, numeroAsiento: e.target.value })}
+                                placeholder="Ej: 12, 15"
+                              />
+                            </div>
+                          )}
+                          <div>
+                            <Label htmlFor="pagado">Estado de Pago</Label>
+                            <Select value={passengerFormData.pagado ? 'paid' : 'pending'} onValueChange={(value) => setPassengerFormData({ ...passengerFormData, pagado: value === 'paid' })}>
+                              <SelectTrigger>
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="pending">Pendiente</SelectItem>
+                                <SelectItem value="paid">Pagado</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+                          <div className="flex justify-end space-x-2">
+                            <Button type="button" variant="outline" onClick={() => setIsAddPassengerDialogOpen(false)}>
+                              Cancelar
+                            </Button>
+                            <Button type="submit" disabled={loading}>
+                              {loading ? 'Agregando...' : 'Agregar Pasajero'}
+                            </Button>
+                          </div>
+                        </form>
+                      </DialogContent>
+                    </Dialog>
+                  </div>
+                </div>
+                {tripPassengers.length === 0 ? (
+                  <p className="text-center text-muted-foreground py-8">
+                    No hay pasajeros registrados para este viaje
+                  </p>
+                ) : (
+                  <div className="space-y-2">
+                    {tripPassengers.map((passenger) => {
+                      const client = clients.find(c => c.id === passenger.clientId)
+                      if (!client) return null
+                      
+                      return (
+                        <Card key={passenger.id}>
+                          <CardContent className="p-4">
+                            <div className="flex justify-between items-start">
+                              <div className="space-y-1">
+                                <p className="font-medium">{client.name}</p>
+                                <p className="text-sm text-muted-foreground">
+                                  DNI: {client.dni} | Tel: {client.phone}
+                                </p>
+                                <p className="text-sm text-muted-foreground">
+                                  Email: {client.email}
+                                </p>
+                                <div className="flex items-center space-x-4 text-sm">
+                                  <span>
+                                    {selectedTrip.type === 'crucero' ? 'Cabina' : 'Asiento'}: {' '}
+                                    <span className="font-medium">
+                                      {selectedTrip.type === 'crucero' ? passenger.numeroCabina : passenger.numeroAsiento}
+                                    </span>
+                                  </span>
+                                  <Badge variant={passenger.pagado ? 'default' : 'secondary'}>
+                                    {passenger.pagado ? 'Pagado' : 'Pendiente'}
+                                  </Badge>
+                                </div>
+                              </div>
+                              <AlertDialog>
+                                <AlertDialogTrigger asChild>
+                                  <Button variant="outline" size="sm">
+                                    <Trash2 className="h-4 w-4" />
+                                  </Button>
+                                </AlertDialogTrigger>
+                                <AlertDialogContent>
+                                  <AlertDialogHeader>
+                                    <AlertDialogTitle>¿Eliminar pasajero?</AlertDialogTitle>
+                                    <AlertDialogDescription>
+                                      Esta acción no se puede deshacer. Se eliminará permanentemente a "{client.name}" de este viaje.
+                                    </AlertDialogDescription>
+                                  </AlertDialogHeader>
+                                  <AlertDialogFooter>
+                                    <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                    <AlertDialogAction onClick={() => handleDeletePassenger(passenger.id)}>
+                                      Eliminar
+                                    </AlertDialogAction>
+                                  </AlertDialogFooter>
+                                </AlertDialogContent>
+                              </AlertDialog>
+                            </div>
+                          </CardContent>
+                        </Card>
+                      )
+                    })}
+                  </div>
+                )}
+              </TabsContent>
+            </Tabs>
+          )}
         </DialogContent>
       </Dialog>
     </div>
