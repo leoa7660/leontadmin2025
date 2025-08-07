@@ -13,7 +13,7 @@ import { Separator } from '@/components/ui/separator'
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog'
 import { Textarea } from '@/components/ui/textarea'
 import { toast } from '@/hooks/use-toast'
-import { Plane, Ship, Bus, Users, Calendar, MapPin, DollarSign, FileDown, Trash2, Edit, Plus, UserPlus, Printer, Eye } from 'lucide-react'
+import { Plane, Ship, Bus, Users, Calendar, MapPin, DollarSign, FileDown, Trash2, Edit, Plus, UserPlus, Printer, Eye, Archive, CreditCard } from 'lucide-react'
 import * as XLSX from 'xlsx'
 import jsPDF from 'jspdf'
 import { 
@@ -21,11 +21,13 @@ import {
   updateTrip, 
   deleteTrip, 
   createTripPassenger, 
+  updateTripPassenger,
   deleteTripPassenger,
   getTrips,
   getTripPassengers,
   getClients,
-  getBuses
+  getBuses,
+  createPayment
 } from '@/app/actions/database'
 
 interface Client {
@@ -81,11 +83,13 @@ export function TripsManager({ trips, onDataChange }: TripsManagerProps) {
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
   const [isDetailsDialogOpen, setIsDetailsDialogOpen] = useState(false)
   const [isAddPassengerDialogOpen, setIsAddPassengerDialogOpen] = useState(false)
+  const [isChargeDialogOpen, setIsChargeDialogOpen] = useState(false)
   const [selectedTrip, setSelectedTrip] = useState<Trip | null>(null)
   const [tripPassengers, setTripPassengers] = useState<TripPassenger[]>([])
   const [clients, setClients] = useState<Client[]>([])
   const [buses, setBuses] = useState<Bus[]>([])
   const [loading, setLoading] = useState(false)
+  const [selectedPassenger, setSelectedPassenger] = useState<TripPassenger | null>(null)
 
   const [formData, setFormData] = useState({
     destino: '',
@@ -103,6 +107,14 @@ export function TripsManager({ trips, onDataChange }: TripsManagerProps) {
     numeroAsiento: '',
     numeroCabina: '',
     pagado: false
+  })
+
+  const [chargeData, setChargeData] = useState({
+    amount: '',
+    currency: 'ARS' as 'ARS' | 'USD',
+    description: '',
+    receiptNumber: '',
+    paymentMethod: 'efectivo'
   })
 
   useEffect(() => {
@@ -313,187 +325,240 @@ export function TripsManager({ trips, onDataChange }: TripsManagerProps) {
     }
   }
 
-  const exportToExcel = () => {
-    if (!selectedTrip || tripPassengers.length === 0) {
-      toast({
-        title: "Error",
-        description: "No hay pasajeros para exportar",
-        variant: "destructive"
-      })
-      return
-    }
-
-    const data = tripPassengers.map(passenger => {
-      const client = clients.find(c => c.id === passenger.clientId)
-      const fullName = client?.name || ''
-      const nameParts = fullName.trim().split(' ')
-      const lastName = nameParts.length > 1 ? nameParts.slice(-1).join(' ') : ''
-      const firstName = nameParts.length > 1 ? nameParts.slice(0, -1).join(' ') : fullName
-
-      return {
-        'Apellido': lastName,
-        'Nombre': firstName,
-        'Fecha de Nacimiento': client?.fechaNacimiento ? 
-          client.fechaNacimiento.toLocaleDateString('es-ES') : '',
-        'Número de Documento': client?.dni || '',
-        'Teléfono': client?.phone || '',
-        'Email': client?.email || '',
-        [selectedTrip.type === 'crucero' ? 'Cabina' : 'Asiento']: 
-          selectedTrip.type === 'crucero' ? 
-          (passenger.numeroCabina || '') : 
-          (passenger.numeroAsiento?.toString() || ''),
-        'Estado de Pago': passenger.pagado ? 'Pagado' : 'Pendiente',
-        'Fecha de Reserva': passenger.fechaReserva.toLocaleDateString('es-ES')
-      }
-    })
-
-    const ws = XLSX.utils.json_to_sheet(data)
-    const wb = XLSX.utils.book_new()
-    
-    // Ajustar el ancho de las columnas
-    const colWidths = [
-      { wch: 20 }, // Apellido
-      { wch: 20 }, // Nombre
-      { wch: 18 }, // Fecha de Nacimiento
-      { wch: 15 }, // Número de Documento
-      { wch: 15 }, // Teléfono
-      { wch: 25 }, // Email
-      { wch: 10 }, // Asiento/Cabina
-      { wch: 15 }, // Estado de Pago
-      { wch: 15 }  // Fecha de Reserva
-    ]
-    ws['!cols'] = colWidths
-
-    XLSX.utils.book_append_sheet(wb, ws, 'Pasajeros')
-    const departureDate = selectedTrip.fechaSalida.toLocaleDateString('es-ES').replace(/\//g, '-')
-    const fileName = `Pasajeros_${selectedTrip.destino}_${departureDate}.xlsx`
-    XLSX.writeFile(wb, fileName)
-    
-    toast({
-      title: "Éxito",
-      description: `Lista de pasajeros exportada como ${fileName}`
-    })
-  }
-
-  const generatePDF = () => {
-    if (!selectedTrip || tripPassengers.length === 0) {
-      toast({
-        title: "Error",
-        description: "No hay pasajeros para generar el PDF",
-        variant: "destructive"
-      })
-      return
-    }
-
+  const handleArchiveTrip = async (tripId: string) => {
     try {
-      const doc = new jsPDF()
-      
-      // Título del documento
-      doc.setFontSize(18)
-      doc.setFont('helvetica', 'bold')
-      doc.text(`Lista de Pasajeros - ${selectedTrip.destino}`, 20, 20)
-      
-      // Información del viaje
-      doc.setFontSize(12)
-      doc.setFont('helvetica', 'normal')
-      doc.text(`Fecha de Salida: ${selectedTrip.fechaSalida.toLocaleDateString('es-ES')}`, 20, 35)
-      doc.text(`Fecha de Regreso: ${selectedTrip.fechaRegreso.toLocaleDateString('es-ES')}`, 20, 45)
-      doc.text(`Precio: ${selectedTrip.currency} $${selectedTrip.importe.toLocaleString()}`, 20, 55)
-      
-      // Obtener y ordenar pasajeros alfabéticamente
-      const passengersWithClients = tripPassengers
-        .map(passenger => {
-          const client = clients.find(c => c.id === passenger.clientId)
-          return { passenger, client }
-        })
-        .filter(item => item.client)
-        .sort((a, b) => {
-          const nameA = `${a.client!.name}`.toLowerCase()
-          const nameB = `${b.client!.name}`.toLowerCase()
-          return nameA.localeCompare(nameB)
-        })
-
-      // Encabezados de la tabla
-      let yPosition = 75
-      doc.setFont('helvetica', 'bold')
-      doc.text('N°', 20, yPosition)
-      doc.text('Apellido y Nombre', 35, yPosition)
-      doc.text('N° Documento', 120, yPosition)
-      doc.text('Fecha Nacimiento', 160, yPosition)
-      
-      // Línea separadora
-      doc.line(20, yPosition + 3, 190, yPosition + 3)
-      
-      // Datos de los pasajeros
-      doc.setFont('helvetica', 'normal')
-      yPosition += 15
-      
-      passengersWithClients.forEach((item, index) => {
-        const { client } = item
-        
-        // Verificar si necesitamos una nueva página
-        if (yPosition > 270) {
-          doc.addPage()
-          yPosition = 20
-          
-          // Repetir encabezados en nueva página
-          doc.setFont('helvetica', 'bold')
-          doc.text('N°', 20, yPosition)
-          doc.text('Apellido y Nombre', 35, yPosition)
-          doc.text('N° Documento', 120, yPosition)
-          doc.text('Fecha Nacimiento', 160, yPosition)
-          doc.line(20, yPosition + 3, 190, yPosition + 3)
-          doc.setFont('helvetica', 'normal')
-          yPosition += 15
-        }
-        
-        // Número correlativo
-        doc.text(`${index + 1}`, 20, yPosition)
-        
-        // Apellido y nombre
-        const fullName = client!.name || ''
-        doc.text(fullName, 35, yPosition)
-        
-        // Número de documento
-        doc.text(client!.dni || '', 120, yPosition)
-        
-        // Fecha de nacimiento
-        const birthDate = client!.fechaNacimiento ? 
-          client!.fechaNacimiento.toLocaleDateString('es-ES') : ''
-        doc.text(birthDate, 160, yPosition)
-        
-        yPosition += 10
-      })
-      
-      // Pie de página con fecha de generación
-      const pageCount = doc.getNumberOfPages()
-      for (let i = 1; i <= pageCount; i++) {
-        doc.setPage(i)
-        doc.setFontSize(8)
-        doc.setFont('helvetica', 'normal')
-        doc.text(
-          `Generado el ${new Date().toLocaleDateString('es-ES')} - Página ${i} de ${pageCount}`,
-          20,
-          285
-        )
-      }
-      
-      // Guardar el PDF
-      const fileName = `Lista_Pasajeros_${selectedTrip.destino}_${selectedTrip.fechaSalida.toLocaleDateString('es-ES').replace(/\//g, '-')}.pdf`
-      doc.save(fileName)
-      
+      await updateTrip(tripId, { archived: true })
       toast({
         title: "Éxito",
-        description: "Lista de pasajeros generada en PDF correctamente"
+        description: "Viaje archivado correctamente"
       })
+      onDataChange()
     } catch (error) {
-      console.error('Error generating PDF:', error)
       toast({
         title: "Error",
-        description: "No se pudo generar el PDF",
+        description: "No se pudo archivar el viaje",
         variant: "destructive"
       })
     }
+  }
+
+  const handleCharge = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!selectedPassenger || !selectedTrip) return
+
+    setLoading(true)
+
+    try {
+      const client = clients.find(c => c.id === selectedPassenger.clientId)
+      if (!client) throw new Error('Cliente no encontrado')
+
+      // Crear el pago
+      await createPayment({
+        clientId: selectedPassenger.clientId,
+        tripId: selectedTrip.id,
+        amount: parseFloat(chargeData.amount),
+        currency: chargeData.currency,
+        type: 'payment',
+        description: `Pago por viaje a ${selectedTrip.destino} - ${chargeData.description}`,
+        receiptNumber: chargeData.receiptNumber || `REC-${Date.now()}`
+      })
+
+      // Actualizar estado de pago del pasajero
+      await updateTripPassenger(selectedPassenger.id, { pagado: true })
+
+      toast({
+        title: "Éxito",
+        description: "Pago registrado correctamente"
+      })
+
+      setIsChargeDialogOpen(false)
+      resetChargeForm()
+      loadTripPassengers(selectedTrip.id)
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "No se pudo registrar el pago",
+        variant: "destructive"
+      })
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const printReceipt = (passenger: TripPassenger, paymentAmount: number, currency: string, receiptNumber: string) => {
+    const client = clients.find(c => c.id === passenger.clientId)
+    if (!client || !selectedTrip) return
+
+    const receiptContent = `
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <title>Recibo - ${receiptNumber}</title>
+          <style>
+            body { 
+              font-family: Arial, sans-serif; 
+              max-width: 600px; 
+              margin: 0 auto; 
+              padding: 20px; 
+              color: #333;
+            }
+            .header { 
+              text-align: center; 
+              border-bottom: 2px solid #333; 
+              padding-bottom: 20px; 
+              margin-bottom: 20px; 
+            }
+            .company-name { 
+              font-size: 24px; 
+              font-weight: bold; 
+              color: #2563eb; 
+              margin: 0; 
+            }
+            .receipt-title { 
+              font-size: 18px; 
+              margin-top: 15px; 
+              font-weight: bold; 
+            }
+            .section { 
+              margin: 20px 0; 
+            }
+            .section-title { 
+              font-weight: bold; 
+              font-size: 16px; 
+              margin-bottom: 10px; 
+              border-bottom: 1px solid #ddd; 
+              padding-bottom: 5px; 
+            }
+            .info-row { 
+              display: flex; 
+              justify-content: space-between; 
+              margin: 8px 0; 
+            }
+            .info-label { 
+              font-weight: bold; 
+            }
+            .total-section { 
+              background-color: #f8f9fa; 
+              padding: 15px; 
+              border-radius: 5px; 
+              margin-top: 20px; 
+            }
+            .total-amount { 
+              font-size: 20px; 
+              font-weight: bold; 
+              color: #2563eb; 
+            }
+            .footer { 
+              text-align: center; 
+              margin-top: 30px; 
+              padding-top: 20px; 
+              border-top: 1px solid #ddd; 
+              color: #666; 
+              font-size: 12px; 
+            }
+            @media print { 
+              body { margin: 0; } 
+              .no-print { display: none; }
+            }
+          </style>
+        </head>
+        <body>
+          <div class="header">
+            <h1 class="company-name">LT Tour Operator</h1>
+            <p>Tu compañía de confianza para viajar</p>
+            <div class="receipt-title">RECIBO DE PAGO</div>
+            <div>N° ${receiptNumber}</div>
+          </div>
+
+          <div class="section">
+            <div class="section-title">Información del Cliente</div>
+            <div class="info-row">
+              <span class="info-label">Nombre:</span>
+              <span>${client.name}</span>
+            </div>
+            <div class="info-row">
+              <span class="info-label">DNI:</span>
+              <span>${client.dni}</span>
+            </div>
+            <div class="info-row">
+              <span class="info-label">Email:</span>
+              <span>${client.email}</span>
+            </div>
+            <div class="info-row">
+              <span class="info-label">Teléfono:</span>
+              <span>${client.phone}</span>
+            </div>
+          </div>
+
+          <div class="section">
+            <div class="section-title">Detalles del Viaje</div>
+            <div class="info-row">
+              <span class="info-label">Destino:</span>
+              <span>${selectedTrip.destino}</span>
+            </div>
+            <div class="info-row">
+              <span class="info-label">Fecha de Salida:</span>
+              <span>${selectedTrip.fechaSalida.toLocaleDateString('es-ES')}</span>
+            </div>
+            <div class="info-row">
+              <span class="info-label">Fecha de Regreso:</span>
+              <span>${selectedTrip.fechaRegreso.toLocaleDateString('es-ES')}</span>
+            </div>
+            <div class="info-row">
+              <span class="info-label">Tipo de Viaje:</span>
+              <span>${getTripTypeLabel(selectedTrip.type)}</span>
+            </div>
+            ${selectedTrip.type === 'crucero' ? 
+              `<div class="info-row">
+                <span class="info-label">Cabina:</span>
+                <span>${passenger.numeroCabina || 'N/A'}</span>
+              </div>` : 
+              `<div class="info-row">
+                <span class="info-label">Asiento:</span>
+                <span>${passenger.numeroAsiento || 'N/A'}</span>
+              </div>`
+            }
+          </div>
+
+          <div class="total-section">
+            <div class="info-row">
+              <span class="info-label">TOTAL PAGADO:</span>
+              <span class="total-amount">${currency === 'USD' ? 'US$' : '$'}${paymentAmount.toLocaleString()}</span>
+            </div>
+          </div>
+
+          <div class="footer">
+            <p><strong>LT Tour Operator</strong> - Tu compañía de confianza para viajar</p>
+            <p>Gracias por confiar en nosotros</p>
+            <p>Recibo generado el ${new Date().toLocaleDateString('es-ES')}</p>
+          </div>
+
+          <div class="no-print" style="text-align: center; margin-top: 20px;">
+            <button onclick="window.print()" style="background-color: #2563eb; color: white; padding: 10px 20px; border: none; border-radius: 5px; cursor: pointer;">
+              Imprimir Recibo
+            </button>
+          </div>
+        </body>
+      </html>
+    `
+
+    const printWindow = window.open('', '_blank')
+    if (printWindow) {
+      printWindow.document.write(receiptContent)
+      printWindow.document.close()
+      printWindow.focus()
+    }
+  }
+
+  const resetChargeForm = () => {
+    setChargeData({
+      amount: '',
+      currency: 'ARS',
+      description: '',
+      receiptNumber: '',
+      paymentMethod: 'efectivo'
+    })
+    setSelectedPassenger(null)
   }
 
   const resetForm = () => {
@@ -560,11 +625,19 @@ export function TripsManager({ trips, onDataChange }: TripsManagerProps) {
     }
   }
 
-  // Filtrar viajes por tipo
-  const aereoTrips = trips.filter(trip => trip.type === 'aereo' && !trip.archived)
-  const cruceroTrips = trips.filter(trip => trip.type === 'crucero' && !trip.archived)
-  const individualTrips = trips.filter(trip => trip.type === 'individual' && !trip.archived)
-  const grupalTrips = trips.filter(trip => trip.type === 'grupal' && !trip.archived)
+  // Filtrar y ordenar viajes por tipo y fecha de salida
+  const aereoTrips = trips
+    .filter(trip => trip.type === 'aereo' && !trip.archived)
+    .sort((a, b) => a.fechaSalida.getTime() - b.fechaSalida.getTime())
+  const cruceroTrips = trips
+    .filter(trip => trip.type === 'crucero' && !trip.archived)
+    .sort((a, b) => a.fechaSalida.getTime() - b.fechaSalida.getTime())
+  const individualTrips = trips
+    .filter(trip => trip.type === 'individual' && !trip.archived)
+    .sort((a, b) => a.fechaSalida.getTime() - b.fechaSalida.getTime())
+  const grupalTrips = trips
+    .filter(trip => trip.type === 'grupal' && !trip.archived)
+    .sort((a, b) => a.fechaSalida.getTime() - b.fechaSalida.getTime())
 
   const renderTripCard = (trip: Trip) => (
     <Card key={trip.id} className="hover:shadow-lg transition-shadow">
@@ -611,6 +684,27 @@ export function TripsManager({ trips, onDataChange }: TripsManagerProps) {
             >
               <Edit className="h-4 w-4" />
             </Button>
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button variant="outline" size="sm">
+                  <Archive className="h-4 w-4" />
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>¿Archivar viaje?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    El viaje "{trip.destino}" será archivado y no aparecerá en la lista principal.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                  <AlertDialogAction onClick={() => handleArchiveTrip(trip.id)}>
+                    Archivar
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
             <AlertDialog>
               <AlertDialogTrigger asChild>
                 <Button variant="outline" size="sm">
@@ -1118,27 +1212,47 @@ export function TripsManager({ trips, onDataChange }: TripsManagerProps) {
                                   </Badge>
                                 </div>
                               </div>
-                              <AlertDialog>
-                                <AlertDialogTrigger asChild>
-                                  <Button variant="outline" size="sm">
-                                    <Trash2 className="h-4 w-4" />
+                              <div className="flex space-x-2">
+                                {!passenger.pagado && (
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => {
+                                      setSelectedPassenger(passenger)
+                                      setChargeData({
+                                        ...chargeData,
+                                        amount: selectedTrip.importe.toString(),
+                                        currency: selectedTrip.currency
+                                      })
+                                      setIsChargeDialogOpen(true)
+                                    }}
+                                  >
+                                    <CreditCard className="h-4 w-4 mr-1" />
+                                    Cobrar
                                   </Button>
-                                </AlertDialogTrigger>
-                                <AlertDialogContent>
-                                  <AlertDialogHeader>
-                                    <AlertDialogTitle>¿Eliminar pasajero?</AlertDialogTitle>
-                                    <AlertDialogDescription>
-                                      Esta acción no se puede deshacer. Se eliminará permanentemente a "{client.name}" de este viaje.
-                                    </AlertDialogDescription>
-                                  </AlertDialogHeader>
-                                  <AlertDialogFooter>
-                                    <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                                    <AlertDialogAction onClick={() => handleDeletePassenger(passenger.id)}>
-                                      Eliminar
-                                    </AlertDialogAction>
-                                  </AlertDialogFooter>
-                                </AlertDialogContent>
-                              </AlertDialog>
+                                )}
+                                <AlertDialog>
+                                  <AlertDialogTrigger asChild>
+                                    <Button variant="outline" size="sm">
+                                      <Trash2 className="h-4 w-4" />
+                                    </Button>
+                                  </AlertDialogTrigger>
+                                  <AlertDialogContent>
+                                    <AlertDialogHeader>
+                                      <AlertDialogTitle>¿Eliminar pasajero?</AlertDialogTitle>
+                                      <AlertDialogDescription>
+                                        Esta acción no se puede deshacer. Se eliminará permanentemente a "{client.name}" de este viaje.
+                                      </AlertDialogDescription>
+                                    </AlertDialogHeader>
+                                    <AlertDialogFooter>
+                                      <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                      <AlertDialogAction onClick={() => handleDeletePassenger(passenger.id)}>
+                                        Eliminar
+                                      </AlertDialogAction>
+                                    </AlertDialogFooter>
+                                  </AlertDialogContent>
+                                </AlertDialog>
+                              </div>
                             </div>
                           </CardContent>
                         </Card>
@@ -1148,6 +1262,82 @@ export function TripsManager({ trips, onDataChange }: TripsManagerProps) {
                 )}
               </TabsContent>
             </Tabs>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Dialog para cobrar */}
+      <Dialog open={isChargeDialogOpen} onOpenChange={setIsChargeDialogOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Cobrar Pasajero</DialogTitle>
+          </DialogHeader>
+          {selectedPassenger && selectedTrip && (
+            <form onSubmit={handleCharge} className="space-y-4">
+              <div className="p-4 bg-muted rounded-lg">
+                <h4 className="font-medium mb-2">Información del Cobro</h4>
+                <div className="text-sm space-y-1">
+                  <div>Cliente: {clients.find(c => c.id === selectedPassenger.clientId)?.name}</div>
+                  <div>Viaje: {selectedTrip.destino}</div>
+                  <div>Fecha: {selectedTrip.fechaSalida.toLocaleDateString('es-ES')}</div>
+                </div>
+              </div>
+              
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="charge_amount">Monto</Label>
+                  <Input
+                    id="charge_amount"
+                    type="number"
+                    step="0.01"
+                    value={chargeData.amount}
+                    onChange={(e) => setChargeData({ ...chargeData, amount: e.target.value })}
+                    required
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="charge_currency">Moneda</Label>
+                  <Select value={chargeData.currency} onValueChange={(value: 'ARS' | 'USD') => setChargeData({ ...chargeData, currency: value })}>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="ARS">ARS</SelectItem>
+                      <SelectItem value="USD">USD</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              <div>
+                <Label htmlFor="charge_description">Descripción</Label>
+                <Input
+                  id="charge_description"
+                  value={chargeData.description}
+                  onChange={(e) => setChargeData({ ...chargeData, description: e.target.value })}
+                  placeholder="Concepto del pago..."
+                />
+              </div>
+
+              <div>
+                <Label htmlFor="charge_receipt">N° de Recibo (opcional)</Label>
+                <Input
+                  id="charge_receipt"
+                  value={chargeData.receiptNumber}
+                  onChange={(e) => setChargeData({ ...chargeData, receiptNumber: e.target.value })}
+                  placeholder="Se generará automáticamente si se deja vacío"
+                />
+              </div>
+
+              <div className="flex justify-end space-x-2">
+                <Button type="button" variant="outline" onClick={() => setIsChargeDialogOpen(false)}>
+                  Cancelar
+                </Button>
+                <Button type="submit" disabled={loading}>
+                  {loading ? 'Cobrando...' : 'Cobrar y Generar Recibo'}
+                </Button>
+              </div>
+            </form>
           )}
         </DialogContent>
       </Dialog>
