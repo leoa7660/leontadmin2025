@@ -20,23 +20,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea"
 import { Badge } from "@/components/ui/badge"
 import type { Client, Trip, Payment, TripPassenger, Bus, User } from "../page"
-import {
-  Plus,
-  Printer,
-  Search,
-  Calendar,
-  CreditCard,
-  AlertCircle,
-  TrendingUp,
-  TrendingDown,
-  FileText,
-  Download,
-  ArrowRightLeft,
-  Loader2,
-  Banknote,
-  Smartphone,
-  Building,
-} from "lucide-react"
+import { Plus, Printer, Search, Calendar, CreditCard, AlertCircle, TrendingUp, TrendingDown, FileText, Download, ArrowRightLeft, Loader2, Banknote, Smartphone, Building } from 'lucide-react'
 import { useToast } from "@/hooks/use-toast"
 import { createPayment, updatePayment } from "../actions/database"
 
