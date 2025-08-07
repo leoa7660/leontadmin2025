@@ -20,7 +20,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea"
 import { Badge } from "@/components/ui/badge"
 import type { Bus, Client, Trip, TripPassenger, Payment } from "../page"
-import { Plus, MapPin, Calendar, DollarSign, UserPlus, Receipt, Printer, Eye, Edit, ArrowRightLeft, Archive, ArchiveRestore, Ticket, ImageIcon, Car, Users, Ship, Plane, Loader2, Trash2 } from 'lucide-react'
+import { Plus, MapPin, Calendar, DollarSign, UserPlus, Receipt, Printer, Eye, Edit, ArrowRightLeft, Archive, ArchiveRestore, Ticket, ImageIcon, Car, Users, Ship, Plane, Loader2, Trash2, Download } from 'lucide-react'
 import { Progress } from "@/components/ui/progress"
 import Image from "next/image"
 import { useToast } from "@/hooks/use-toast"
@@ -33,6 +33,7 @@ import {
   deleteTrip,
   deleteTripPassenger,
 } from "../actions/database"
+import * as XLSX from 'xlsx'
 
 interface TripsManagerProps {
   trips: Trip[]
@@ -534,7 +535,86 @@ export function TripsManager({
     }
   }
 
-  // Función para obtener etiqueta del tipo de viaje
+  const exportPassengersToExcel = (trip: Trip, passengers: TripPassenger[]) => {
+    // Preparar los datos para exportar
+    const exportData = passengers
+      .sort((a, b) => {
+        // Para cruceros, ordenar por número de cabina (string)
+        if (trip.type === "crucero") {
+          return (a.numeroCabina || "").localeCompare(b.numeroCabina || "")
+        }
+        // Para otros tipos, ordenar por número de asiento (número)
+        return (a.numeroAsiento || 0) - (b.numeroAsiento || 0)
+      })
+      .map((passenger) => {
+        const client = clients.find((c) => c.id === passenger.clientId)
+        if (!client) return null
+  
+        // Separar nombre y apellido
+        const nameParts = client.name.split(' ')
+        const firstName = nameParts[0] || ''
+        const lastName = nameParts.slice(1).join(' ') || ''
+  
+        return {
+          'Apellido': lastName,
+          'Nombre': firstName,
+          'Fecha de Nacimiento': client.fechaNacimiento.toLocaleDateString('es-AR'),
+          'Número de Documento': client.dni,
+          'Teléfono': client.phone,
+          'Email': client.email || '',
+          ...(trip.type === "grupal" && { 'Asiento': passenger.numeroAsiento }),
+          ...(trip.type === "aereo" && { 'Asiento': passenger.numeroAsiento }),
+          ...(trip.type === "crucero" && { 'Cabina': passenger.numeroCabina }),
+          'Estado de Pago': passenger.pagado ? 'Pagado' : 'Pendiente',
+          'Fecha de Reserva': passenger.fechaReserva.toLocaleDateString('es-AR')
+        }
+      })
+      .filter(Boolean) // Filtrar valores null
+  
+    if (exportData.length === 0) {
+      toast({
+        title: "Sin datos",
+        description: "No hay pasajeros para exportar",
+        variant: "destructive",
+      })
+      return
+    }
+  
+    // Crear el libro de trabajo
+    const wb = XLSX.utils.book_new()
+    const ws = XLSX.utils.json_to_sheet(exportData)
+  
+    // Ajustar el ancho de las columnas
+    const colWidths = [
+      { wch: 20 }, // Apellido
+      { wch: 15 }, // Nombre
+      { wch: 15 }, // Fecha de Nacimiento
+      { wch: 15 }, // Número de Documento
+      { wch: 15 }, // Teléfono
+      { wch: 25 }, // Email
+      ...(trip.type === "grupal" || trip.type === "aereo" ? [{ wch: 10 }] : []), // Asiento
+      ...(trip.type === "crucero" ? [{ wch: 12 }] : []), // Cabina
+      { wch: 12 }, // Estado de Pago
+      { wch: 15 }  // Fecha de Reserva
+    ]
+    ws['!cols'] = colWidths
+  
+    // Agregar la hoja al libro
+    const sheetName = `Pasajeros ${trip.destino}`
+    XLSX.utils.book_append_sheet(wb, ws, sheetName)
+  
+    // Generar el nombre del archivo
+    const fileName = `Pasajeros_${trip.destino.replace(/[^a-zA-Z0-9]/g, '_')}_${trip.fechaSalida.toLocaleDateString('es-AR').replace(/\//g, '-')}.xlsx`
+  
+    // Descargar el archivo
+    XLSX.writeFile(wb, fileName)
+  
+    toast({
+      title: "Exportación exitosa",
+      description: `Se ha descargado el archivo: ${fileName}`,
+    })
+  }
+
   const getTripTypeLabel = (type: string) => {
     switch (type) {
       case "grupal":
@@ -1168,7 +1248,6 @@ export function TripsManager({
     setIsSeatChangeDialogOpen(true)
   }
 
-  // Componente para mostrar información específica del tipo de viaje
   const TripTypeInfo = ({ trip }: { trip: Trip }) => {
     if (trip.type === "individual") {
       return (
@@ -1639,6 +1718,15 @@ export function TripsManager({
                           })()}
 
                           <div className="flex gap-2 pt-4 border-t">
+                            {passengers.length > 0 && (
+                              <Button
+                                variant="outline"
+                                onClick={() => exportPassengersToExcel(trip, passengers)}
+                              >
+                                <Download className="h-4 w-4 mr-2" />
+                                Exportar Lista (Excel)
+                              </Button>
+                            )}
                             {!trip.archived && availableSeats > 0 && (
                               <Button
                                 onClick={() => {
@@ -2213,283 +2301,202 @@ export function TripsManager({
                     <SelectContent>
                       <SelectItem value="ARS">🇦🇷 Pesos Argentinos</SelectItem>
                       <SelectItem value="USD">🇺🇸 Dólares Americanos</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
+                  </SelectContent>
+                </Select>
               </div>
+            </div>
 
-              {/* CAMPOS ESPECÍFICOS PARA CRUCEROS */}
-              {formData.type === "crucero" && (
-                <>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="grid gap-2">
-                      <Label htmlFor="edit-naviera">Naviera</Label>
-                      <Input
-                        id="edit-naviera"
-                        value={formData.naviera}
-                        onChange={(e) => setFormData({ ...formData, naviera: e.target.value })}
-                        placeholder="Ej: MSC, Royal Caribbean"
-                        disabled={isLoading}
-                      />
-                    </div>
-                    <div className="grid gap-2">
-                      <Label htmlFor="edit-barco">Nombre del Barco</Label>
-                      <Input
-                        id="edit-barco"
-                        value={formData.barco}
-                        onChange={(e) => setFormData({ ...formData, barco: e.target.value })}
-                        placeholder="Ej: MSC Seaside"
-                        disabled={isLoading}
-                      />
-                    </div>
-                  </div>
+            {/* CAMPOS ESPECÍFICOS PARA CRUCEROS */}
+            {formData.type === "crucero" && (
+              <>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="grid gap-2">
-                    <Label htmlFor="edit-cabina">Tipo de Cabina</Label>
+                    <Label htmlFor="edit-naviera">Naviera</Label>
                     <Input
-                      id="edit-cabina"
-                      value={formData.cabina}
-                      onChange={(e) => setFormData({ ...formData, cabina: e.target.value })}
-                      placeholder="Ej: Interior, Balcón, Suite"
+                      id="edit-naviera"
+                      value={formData.naviera}
+                      onChange={(e) => setFormData({ ...formData, naviera: e.target.value })}
+                      placeholder="Ej: MSC, Royal Caribbean"
                       disabled={isLoading}
                     />
                   </div>
-                </>
-              )}
-
-              {/* CAMPOS ESPECÍFICOS PARA AÉREOS */}
-              {formData.type === "aereo" && (
-                <>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="grid gap-2">
-                      <Label htmlFor="edit-aerolinea">Aerolínea</Label>
-                      <Input
-                        id="edit-aerolinea"
-                        value={formData.aerolinea}
-                        onChange={(e) => setFormData({ ...formData, aerolinea: e.target.value })}
-                        placeholder="Ej: Aerolíneas Argentinas"
-                        disabled={isLoading}
-                      />
-                    </div>
-                    <div className="grid gap-2">
-                      <Label htmlFor="edit-numeroVuelo">Número de Vuelo</Label>
-                      <Input
-                        id="edit-numeroVuelo"
-                        value={formData.numeroVuelo}
-                        onChange={(e) => setFormData({ ...formData, numeroVuelo: e.target.value })}
-                        placeholder="Ej: AR1234"
-                        disabled={isLoading}
-                      />
-                    </div>
+                  <div className="grid gap-2">
+                    <Label htmlFor="edit-barco">Nombre del Barco</Label>
+                    <Input
+                      id="edit-barco"
+                      value={formData.barco}
+                      onChange={(e) => setFormData({ ...formData, barco: e.target.value })}
+                      placeholder="Ej: MSC Seaside"
+                      disabled={isLoading}
+                    />
                   </div>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="grid gap-2">
-                      <Label htmlFor="edit-clase">Clase</Label>
-                      <Select
-                        value={formData.clase}
-                        onValueChange={(value) => setFormData({ ...formData, clase: value })}
-                        disabled={isLoading}
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Seleccionar clase" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="economica">Económica</SelectItem>
-                          <SelectItem value="premium">Premium Economy</SelectItem>
-                          <SelectItem value="business">Business</SelectItem>
-                          <SelectItem value="primera">Primera Clase</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div className="grid gap-2">
-                      <Label htmlFor="edit-escalas">Escalas (opcional)</Label>
-                      <Input
-                        id="edit-escalas"
-                        value={formData.escalas}
-                        onChange={(e) => setFormData({ ...formData, escalas: e.target.value })}
-                        placeholder="Ej: 1 escala en Lima"
-                        disabled={isLoading}
-                      />
-                    </div>
-                  </div>
-                </>
-              )}
-
-              {/* DESCRIPCIÓN - ÚLTIMO */}
-              <div className="grid gap-2">
-                <Label htmlFor="edit-descripcion">Descripción / Incluye</Label>
-                <Textarea
-                  id="edit-descripcion"
-                  value={formData.descripcion}
-                  onChange={(e) => setFormData({ ...formData, descripcion: e.target.value })}
-                  placeholder="Describe qué incluye el viaje..."
-                  disabled={isLoading}
-                />
-              </div>
-            </div>
-            <DialogFooter>
-              <Button type="button" variant="outline" onClick={resetEditForm} disabled={isLoading}>
-                Cancelar
-              </Button>
-              <Button type="submit" disabled={isLoading}>
-                {isLoading ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : "Actualizar Viaje"}
-              </Button>
-            </DialogFooter>
-          </form>
-        </DialogContent>
-      </Dialog>
-
-      {/* DIALOGO PARA AGREGAR PASAJERO */}
-      <Dialog open={isPassengerDialogOpen} onOpenChange={setIsPassengerDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>
-              {selectedTrip?.type === "individual"
-                ? "Asignar Cliente"
-                : selectedTrip?.type === "crucero"
-                  ? "Agregar Pasajero al Crucero"
-                  : selectedTrip?.type === "aereo"
-                    ? "Agregar Pasajero al Vuelo"
-                    : "Agregar Pasajero al Viaje"}
-            </DialogTitle>
-            <DialogDescription>
-              {selectedTrip?.type === "individual"
-                ? "Asigna un cliente a este viaje individual"
-                : selectedTrip?.type === "crucero"
-                  ? "Selecciona el cliente y asigna una cabina"
-                  : selectedTrip?.type === "aereo"
-                    ? "Selecciona el cliente y asigna un asiento"
-                    : "Selecciona el cliente y asigna un asiento"}
-            </DialogDescription>
-          </DialogHeader>
-          <form onSubmit={handleAddPassenger}>
-            <div className="grid gap-4 py-4">
-              <div className="grid gap-2">
-                <Label htmlFor="passenger-client">Cliente</Label>
-                <Select value={passengerClientId} onValueChange={setPassengerClientId} required disabled={isLoading}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Seleccionar cliente" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {selectedTrip &&
-                      getAvailableClients(selectedTrip.id).map((client) => (
-                        <SelectItem key={client.id} value={client.id}>
-                          {client.name} - {client.dni}
-                        </SelectItem>
-                      ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              {selectedTrip?.type === "grupal" && (
-                <div className="grid gap-2">
-                  <Label htmlFor="passenger-seat">Asiento</Label>
-                  <Select value={selectedSeat} onValueChange={setSelectedSeat} required disabled={isLoading}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Seleccionar asiento" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {getAvailableSeatNumbers(selectedTrip).map((seatNumber) => (
-                        <SelectItem key={seatNumber} value={seatNumber.toString()}>
-                          Asiento {seatNumber}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
                 </div>
-              )}
-
-              {selectedTrip?.type === "aereo" && (
                 <div className="grid gap-2">
-                  <Label htmlFor="passenger-seat-aereo">Asiento</Label>
-                  <Select value={selectedSeat} onValueChange={setSelectedSeat} required disabled={isLoading}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Seleccionar asiento" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {getAvailableSeatNumbers(selectedTrip)
-                        .slice(0, 50)
-                        .map((seatNumber) => (
-                          <SelectItem key={seatNumber} value={seatNumber.toString()}>
-                            Asiento {seatNumber}
-                          </SelectItem>
-                        ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              )}
-
-              {selectedTrip?.type === "crucero" && (
-                <div className="grid gap-2">
-                  <Label htmlFor="passenger-cabin">Número de Cabina</Label>
+                  <Label htmlFor="edit-cabina">Tipo de Cabina</Label>
                   <Input
-                    id="passenger-cabin"
-                    value={selectedCabin}
-                    onChange={(e) => setSelectedCabin(e.target.value)}
-                    placeholder="Ej: A101, B205, Suite 301"
-                    required
+                    id="edit-cabina"
+                    value={formData.cabina}
+                    onChange={(e) => setFormData({ ...formData, cabina: e.target.value })}
+                    placeholder="Ej: Interior, Balcón, Suite"
                     disabled={isLoading}
                   />
                 </div>
-              )}
-            </div>
-            <DialogFooter>
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => {
-                  setPassengerClientId("")
-                  setSelectedSeat("")
-                  setSelectedCabin("")
-                  setIsPassengerDialogOpen(false)
-                }}
-                disabled={isLoading}
-              >
-                Cancelar
-              </Button>
-              <Button type="submit" disabled={isLoading}>
-                {isLoading ? (
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                ) : selectedTrip?.type === "individual" ? (
-                  "Asignar Cliente"
-                ) : (
-                  "Agregar Pasajero"
-                )}
-              </Button>
-            </DialogFooter>
-          </form>
-        </DialogContent>
-      </Dialog>
+              </>
+            )}
 
-      {/* DIALOGO PARA CAMBIAR ASIENTO */}
-      <Dialog open={isSeatChangeDialogOpen} onOpenChange={setIsSeatChangeDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Cambiar Asiento</DialogTitle>
-            <DialogDescription>Selecciona el nuevo asiento para el pasajero</DialogDescription>
-          </DialogHeader>
-          <form onSubmit={handleChangeSeat}>
-            <div className="grid gap-4 py-4">
-              {selectedPassenger && selectedTrip && (
-                <div className="p-4 bg-muted rounded-lg">
-                  <h4 className="font-medium mb-2">Pasajero</h4>
-                  <div className="text-sm space-y-1">
-                    <div>
-                      Cliente: {clients.find((c) => c.id === selectedPassenger.clientId)?.name || "Desconocido"}
-                    </div>
-                    <div>Asiento actual: {selectedPassenger.numeroAsiento}</div>
+            {/* CAMPOS ESPECÍFICOS PARA AÉREOS */}
+            {formData.type === "aereo" && (
+              <>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="grid gap-2">
+                    <Label htmlFor="edit-aerolinea">Aerolínea</Label>
+                    <Input
+                      id="edit-aerolinea"
+                      value={formData.aerolinea}
+                      onChange={(e) => setFormData({ ...formData, aerolinea: e.target.value })}
+                      placeholder="Ej: Aerolíneas Argentinas"
+                      disabled={isLoading}
+                    />
+                  </div>
+                  <div className="grid gap-2">
+                    <Label htmlFor="edit-numeroVuelo">Número de Vuelo</Label>
+                    <Input
+                      id="edit-numeroVuelo"
+                      value={formData.numeroVuelo}
+                      onChange={(e) => setFormData({ ...formData, numeroVuelo: e.target.value })}
+                      placeholder="Ej: AR1234"
+                      disabled={isLoading}
+                    />
                   </div>
                 </div>
-              )}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="grid gap-2">
+                    <Label htmlFor="edit-clase">Clase</Label>
+                    <Select
+                      value={formData.clase}
+                      onValueChange={(value) => setFormData({ ...formData, clase: value })}
+                      disabled={isLoading}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Seleccionar clase" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="economica">Económica</SelectItem>
+                        <SelectItem value="premium">Premium Economy</SelectItem>
+                        <SelectItem value="business">Business</SelectItem>
+                        <SelectItem value="primera">Primera Clase</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="grid gap-2">
+                    <Label htmlFor="edit-escalas">Escalas (opcional)</Label>
+                    <Input
+                      id="edit-escalas"
+                      value={formData.escalas}
+                      onChange={(e) => setFormData({ ...formData, escalas: e.target.value })}
+                      placeholder="Ej: 1 escala en Lima"
+                      disabled={isLoading}
+                    />
+                  </div>
+                </div>
+              </>
+            )}
 
+            {/* DESCRIPCIÓN - ÚLTIMO */}
+            <div className="grid gap-2">
+              <Label htmlFor="edit-descripcion">Descripción / Incluye</Label>
+              <Textarea
+                id="edit-descripcion"
+                value={formData.descripcion}
+                onChange={(e) => setFormData({ ...formData, descripcion: e.target.value })}
+                placeholder="Describe qué incluye el viaje..."
+                disabled={isLoading}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={resetEditForm} disabled={isLoading}>
+              Cancelar
+            </Button>
+            <Button type="submit" disabled={isLoading}>
+              {isLoading ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : "Actualizar Viaje"}
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
+
+    {/* DIALOGO PARA AGREGAR PASAJERO */}
+    <Dialog open={isPassengerDialogOpen} onOpenChange={setIsPassengerDialogOpen}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>
+            {selectedTrip?.type === "individual"
+              ? "Asignar Cliente"
+              : selectedTrip?.type === "crucero"
+                ? "Agregar Pasajero al Crucero"
+                : selectedTrip?.type === "aereo"
+                  ? "Agregar Pasajero al Vuelo"
+                  : "Agregar Pasajero al Viaje"}
+          </DialogTitle>
+          <DialogDescription>
+            {selectedTrip?.type === "individual"
+              ? "Asigna un cliente a este viaje individual"
+              : selectedTrip?.type === "crucero"
+                ? "Selecciona el cliente y asigna una cabina"
+                : selectedTrip?.type === "aereo"
+                  ? "Selecciona el cliente y asigna un asiento"
+                  : "Selecciona el cliente y asigna un asiento"}
+          </DialogDescription>
+        </DialogHeader>
+        <form onSubmit={handleAddPassenger}>
+          <div className="grid gap-4 py-4">
+            <div className="grid gap-2">
+              <Label htmlFor="passenger-client">Cliente</Label>
+              <Select value={passengerClientId} onValueChange={setPassengerClientId} required disabled={isLoading}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Seleccionar cliente" />
+                </SelectTrigger>
+                <SelectContent>
+                  {selectedTrip &&
+                    getAvailableClients(selectedTrip.id).map((client) => (
+                      <SelectItem key={client.id} value={client.id}>
+                        {client.name} - {client.dni}
+                      </SelectItem>
+                    ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {selectedTrip?.type === "grupal" && (
               <div className="grid gap-2">
-                <Label htmlFor="new-seat">Nuevo Asiento</Label>
-                <Select value={newSeatNumber} onValueChange={setNewSeatNumber} required disabled={isLoading}>
+                <Label htmlFor="passenger-seat">Asiento</Label>
+                <Select value={selectedSeat} onValueChange={setSelectedSeat} required disabled={isLoading}>
                   <SelectTrigger>
-                    <SelectValue placeholder="Seleccionar nuevo asiento" />
+                    <SelectValue placeholder="Seleccionar asiento" />
                   </SelectTrigger>
                   <SelectContent>
-                    {selectedTrip &&
-                      getAvailableSeatNumbers(selectedTrip, selectedPassenger?.id).map((seatNumber) => (
+                    {getAvailableSeatNumbers(selectedTrip).map((seatNumber) => (
+                      <SelectItem key={seatNumber} value={seatNumber.toString()}>
+                        Asiento {seatNumber}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+
+            {selectedTrip?.type === "aereo" && (
+              <div className="grid gap-2">
+                <Label htmlFor="passenger-seat-aereo">Asiento</Label>
+                <Select value={selectedSeat} onValueChange={setSelectedSeat} required disabled={isLoading}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Seleccionar asiento" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {getAvailableSeatNumbers(selectedTrip)
+                      .slice(0, 50)
+                      .map((seatNumber) => (
                         <SelectItem key={seatNumber} value={seatNumber.toString()}>
                           Asiento {seatNumber}
                         </SelectItem>
@@ -2497,161 +2504,242 @@ export function TripsManager({
                   </SelectContent>
                 </Select>
               </div>
-            </div>
-            <DialogFooter>
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => {
-                  setNewSeatNumber("")
-                  setIsSeatChangeDialogOpen(false)
-                }}
-                disabled={isLoading}
-              >
-                Cancelar
-              </Button>
-              <Button type="submit" disabled={isLoading}>
-                {isLoading ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : "Cambiar Asiento"}
-              </Button>
-            </DialogFooter>
-          </form>
-        </DialogContent>
-      </Dialog>
+            )}
 
-      {/* DIALOGO PARA PROCESAR PAGO */}
-      <Dialog open={isPaymentDialogOpen} onOpenChange={setIsPaymentDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Procesar Pago</DialogTitle>
-            <DialogDescription>Registra el pago del cliente para este viaje</DialogDescription>
-          </DialogHeader>
-          <form onSubmit={handlePayment}>
-            <div className="grid gap-4 py-4">
-              {selectedPassenger && selectedTrip && (
-                <div className="p-4 bg-muted rounded-lg">
-                  <h4 className="font-medium mb-2">Detalles del Viaje</h4>
-                  <div className="text-sm space-y-1">
-                    <div>
-                      Cliente: {clients.find((c) => c.id === selectedPassenger.clientId)?.name || "Desconocido"}
-                    </div>
-                    <div>Destino: {selectedTrip.destino}</div>
-                    <div>
-                      Importe: {selectedTrip.currency === "USD" ? "US$" : "$"}
-                      {selectedTrip.importe.toLocaleString()}
-                    </div>
-                    {selectedTrip.type === "grupal" && <div>Asiento: {selectedPassenger.numeroAsiento}</div>}
-                    {selectedTrip.type === "aereo" && <div>Asiento: {selectedPassenger.numeroAsiento}</div>}
-                    {selectedTrip.type === "crucero" && <div>Cabina: {selectedPassenger.numeroCabina}</div>}
-                  </div>
-                </div>
-              )}
-
+            {selectedTrip?.type === "crucero" && (
               <div className="grid gap-2">
-                <Label htmlFor="payment-amount">Monto del Pago</Label>
+                <Label htmlFor="passenger-cabin">Número de Cabina</Label>
                 <Input
-                  id="payment-amount"
-                  type="number"
-                  step="0.01"
-                  value={paymentAmount}
-                  onChange={(e) => setPaymentAmount(e.target.value)}
-                  placeholder={selectedTrip ? selectedTrip.importe.toString() : "0"}
+                  id="passenger-cabin"
+                  value={selectedCabin}
+                  onChange={(e) => setSelectedCabin(e.target.value)}
+                  placeholder="Ej: A101, B205, Suite 301"
                   required
                   disabled={isLoading}
                 />
-                <div className="text-xs text-muted-foreground">
-                  {selectedTrip && (
-                    <>
-                      Importe total: {selectedTrip.currency === "USD" ? "US$" : "$"}
-                      {selectedTrip.importe.toLocaleString()}
-                    </>
-                  )}
-                </div>
-              </div>
-            </div>
-            <DialogFooter>
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => {
-                  setPaymentAmount("")
-                  setIsPaymentDialogOpen(false)
-                }}
-                disabled={isLoading}
-              >
-                Cancelar
-              </Button>
-              <Button type="submit" disabled={isLoading}>
-                {isLoading ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : "Procesar Pago"}
-              </Button>
-            </DialogFooter>
-          </form>
-        </DialogContent>
-      </Dialog>
-
-      {/* DIALOGO PARA VER IMAGEN COMPLETA */}
-      <Dialog open={isImageDialogOpen} onOpenChange={setIsImageDialogOpen}>
-        <DialogContent className="sm:max-w-[800px]">
-          <DialogHeader>
-            <DialogTitle>
-              Distribución de Asientos - {selectedTrip && buses.find((b) => b.id === selectedTrip.busId)?.patente}
-            </DialogTitle>
-          </DialogHeader>
-          <div className="py-4">
-            {selectedTrip && (
-              <div className="space-y-4">
-                <div className="text-center">
-                  <p className="text-sm text-muted-foreground">
-                    {buses.find((b) => b.id === selectedTrip.busId)?.tipoServicio} -{" "}
-                    {buses.find((b) => b.id === selectedTrip.busId)?.asientos} asientos
-                  </p>
-                </div>
-                <div className="flex justify-center">
-                  <Image
-                    src={buses.find((b) => b.id === selectedTrip.busId)?.imagenDistribucion || "/placeholder.svg"}
-                    alt={`Distribución ${buses.find((b) => b.id === selectedTrip.busId)?.patente}`}
-                    width={600}
-                    height={400}
-                    className="rounded-lg border object-contain max-w-full max-h-[500px]"
-                  />
-                </div>
               </div>
             )}
           </div>
-        </DialogContent>
-      </Dialog>
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => {
+                setPassengerClientId("")
+                setSelectedSeat("")
+                setSelectedCabin("")
+                setIsPassengerDialogOpen(false)
+              }}
+              disabled={isLoading}
+            >
+              Cancelar
+            </Button>
+            <Button type="submit" disabled={isLoading}>
+              {isLoading ? (
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              ) : selectedTrip?.type === "individual" ? (
+                "Asignar Cliente"
+              ) : (
+                "Agregar Pasajero"
+              )}
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
 
-      {/* MOSTRAR RECIBO DESPUÉS DEL PAGO */}
-      {selectedPayment && (
-        <Dialog
-          open={!!selectedPayment}
-          onOpenChange={() => {
-            setSelectedPayment(null)
-          }}
-        >
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Pago Procesado Exitosamente</DialogTitle>
-              <DialogDescription>El pago se ha registrado correctamente</DialogDescription>
-            </DialogHeader>
-            <div className="py-4">
-              <div className="text-center space-y-2">
-                <div className="text-2xl font-bold text-green-600">
-                  {selectedPayment.currency === "USD" ? "US$" : "$"}
-                  {selectedPayment.amount.toLocaleString()}
+    {/* DIALOGO PARA CAMBIAR ASIENTO */}
+    <Dialog open={isSeatChangeDialogOpen} onOpenChange={setIsSeatChangeDialogOpen}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Cambiar Asiento</DialogTitle>
+          <DialogDescription>Selecciona el nuevo asiento para el pasajero</DialogDescription>
+        </DialogHeader>
+        <form onSubmit={handleChangeSeat}>
+          <div className="grid gap-4 py-4">
+            {selectedPassenger && selectedTrip && (
+              <div className="p-4 bg-muted rounded-lg">
+                <h4 className="font-medium mb-2">Pasajero</h4>
+                <div className="text-sm space-y-1">
+                  <div>
+                    Cliente: {clients.find((c) => c.id === selectedPassenger.clientId)?.name || "Desconocido"}
+                  </div>
+                  <div>Asiento actual: {selectedPassenger.numeroAsiento}</div>
                 </div>
-                <div className="text-sm text-muted-foreground">Recibo N° {selectedPayment.receiptNumber}</div>
+              </div>
+            )}
+
+            <div className="grid gap-2">
+              <Label htmlFor="new-seat">Nuevo Asiento</Label>
+              <Select value={newSeatNumber} onValueChange={setNewSeatNumber} required disabled={isLoading}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Seleccionar nuevo asiento" />
+                </SelectTrigger>
+                <SelectContent>
+                  {selectedTrip &&
+                    getAvailableSeatNumbers(selectedTrip, selectedPassenger?.id).map((seatNumber) => (
+                      <SelectItem key={seatNumber} value={seatNumber.toString()}>
+                        Asiento {seatNumber}
+                      </SelectItem>
+                    ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => {
+                setNewSeatNumber("")
+                setIsSeatChangeDialogOpen(false)
+              }}
+              disabled={isLoading}
+            >
+              Cancelar
+            </Button>
+            <Button type="submit" disabled={isLoading}>
+              {isLoading ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : "Cambiar Asiento"}
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
+
+    {/* DIALOGO PARA PROCESAR PAGO */}
+    <Dialog open={isPaymentDialogOpen} onOpenChange={setIsPaymentDialogOpen}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Procesar Pago</DialogTitle>
+          <DialogDescription>Registra el pago del cliente para este viaje</DialogDescription>
+        </DialogHeader>
+        <form onSubmit={handlePayment}>
+          <div className="grid gap-4 py-4">
+            {selectedPassenger && selectedTrip && (
+              <div className="p-4 bg-muted rounded-lg">
+                <h4 className="font-medium mb-2">Detalles del Viaje</h4>
+                <div className="text-sm space-y-1">
+                  <div>
+                    Cliente: {clients.find((c) => c.id === selectedPassenger.clientId)?.name || "Desconocido"}
+                  </div>
+                  <div>Destino: {selectedTrip.destino}</div>
+                  <div>
+                    Importe: {selectedTrip.currency === "USD" ? "US$" : "$"}
+                    {selectedTrip.importe.toLocaleString()}
+                  </div>
+                  {selectedTrip.type === "grupal" && <div>Asiento: {selectedPassenger.numeroAsiento}</div>}
+                  {selectedTrip.type === "aereo" && <div>Asiento: {selectedPassenger.numeroAsiento}</div>}
+                  {selectedTrip.type === "crucero" && <div>Cabina: {selectedPassenger.numeroCabina}</div>}
+                </div>
+              </div>
+            )}
+
+            <div className="grid gap-2">
+              <Label htmlFor="payment-amount">Monto del Pago</Label>
+              <Input
+                id="payment-amount"
+                type="number"
+                step="0.01"
+                value={paymentAmount}
+                onChange={(e) => setPaymentAmount(e.target.value)}
+                placeholder={selectedTrip ? selectedTrip.importe.toString() : "0"}
+                required
+                disabled={isLoading}
+              />
+              <div className="text-xs text-muted-foreground">
+                {selectedTrip && (
+                  <>
+                    Importe total: {selectedTrip.currency === "USD" ? "US$" : "$"}
+                    {selectedTrip.importe.toLocaleString()}
+                  </>
+                )}
               </div>
             </div>
-            <DialogFooter>
-              <Button variant="outline" onClick={() => printReceipt(selectedPayment)}>
-                <Printer className="h-4 w-4 mr-2" />
-                Imprimir Recibo
-              </Button>
-              <Button onClick={() => setSelectedPayment(null)}>Cerrar</Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-      )}
-    </div>
-  )
+          </div>
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => {
+                setPaymentAmount("")
+                setIsPaymentDialogOpen(false)
+              }}
+              disabled={isLoading}
+            >
+              Cancelar
+            </Button>
+            <Button type="submit" disabled={isLoading}>
+              {isLoading ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : "Procesar Pago"}
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
+
+    {/* DIALOGO PARA VER IMAGEN COMPLETA */}
+    <Dialog open={isImageDialogOpen} onOpenChange={setIsImageDialogOpen}>
+      <DialogContent className="sm:max-w-[800px]">
+        <DialogHeader>
+          <DialogTitle>
+            Distribución de Asientos - {selectedTrip && buses.find((b) => b.id === selectedTrip.busId)?.patente}
+          </DialogTitle>
+        </DialogHeader>
+        <div className="py-4">
+          {selectedTrip && (
+            <div className="space-y-4">
+              <div className="text-center">
+                <p className="text-sm text-muted-foreground">
+                  {buses.find((b) => b.id === selectedTrip.busId)?.tipoServicio} -{" "}
+                  {buses.find((b) => b.id === selectedTrip.busId)?.asientos} asientos
+                </p>
+              </div>
+              <div className="flex justify-center">
+                <Image
+                  src={buses.find((b) => b.id === selectedTrip.busId)?.imagenDistribucion || "/placeholder.svg"}
+                  alt={`Distribución ${buses.find((b) => b.id === selectedTrip.busId)?.patente}`}
+                  width={600}
+                  height={400}
+                  className="rounded-lg border object-contain max-w-full max-h-[500px]"
+                />
+              </div>
+            </div>
+          )}
+        </div>
+      </DialogContent>
+    </Dialog>
+
+    {/* MOSTRAR RECIBO DESPUÉS DEL PAGO */}
+    {selectedPayment && (
+      <Dialog
+        open={!!selectedPayment}
+        onOpenChange={() => {
+          setSelectedPayment(null)
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Pago Procesado Exitosamente</DialogTitle>
+            <DialogDescription>El pago se ha registrado correctamente</DialogDescription>
+          </DialogHeader>
+          <div className="py-4">
+            <div className="text-center space-y-2">
+              <div className="text-2xl font-bold text-green-600">
+                {selectedPayment.currency === "USD" ? "US$" : "$"}
+                {selectedPayment.amount.toLocaleString()}
+              </div>
+              <div className="text-sm text-muted-foreground">Recibo N° {selectedPayment.receiptNumber}</div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => printReceipt(selectedPayment)}>
+              <Printer className="h-4 w-4 mr-2" />
+              Imprimir Recibo
+            </Button>
+            <Button onClick={() => setSelectedPayment(null)}>Cerrar</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    )}
+  </div>
+)
 }
