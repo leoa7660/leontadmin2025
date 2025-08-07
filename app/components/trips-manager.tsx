@@ -560,6 +560,84 @@ export function TripsManager({ trips, onDataChange }: TripsManagerProps) {
     }
   }
 
+  // Filtrar viajes por tipo
+  const aereoTrips = trips.filter(trip => trip.type === 'aereo' && !trip.archived)
+  const cruceroTrips = trips.filter(trip => trip.type === 'crucero' && !trip.archived)
+  const individualTrips = trips.filter(trip => trip.type === 'individual' && !trip.archived)
+  const grupalTrips = trips.filter(trip => trip.type === 'grupal' && !trip.archived)
+
+  const renderTripCard = (trip: Trip) => (
+    <Card key={trip.id} className="hover:shadow-lg transition-shadow">
+      <CardHeader className="pb-3">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center space-x-2">
+            {getTripIcon(trip.type)}
+            <CardTitle className="text-lg">{trip.destino}</CardTitle>
+          </div>
+          <Badge variant="secondary">
+            {getTripTypeLabel(trip.type)}
+          </Badge>
+        </div>
+      </CardHeader>
+      <CardContent className="space-y-3">
+        <div className="flex items-center text-sm text-muted-foreground">
+          <Calendar className="h-4 w-4 mr-2" />
+          {trip.fechaSalida.toLocaleDateString('es-ES')} - {trip.fechaRegreso.toLocaleDateString('es-ES')}
+        </div>
+        <div className="flex items-center text-sm text-muted-foreground">
+          <DollarSign className="h-4 w-4 mr-2" />
+          {trip.currency} ${trip.importe.toLocaleString()}
+        </div>
+        {trip.descripcion && (
+          <p className="text-sm text-muted-foreground line-clamp-2">
+            {trip.descripcion}
+          </p>
+        )}
+        <Separator />
+        <div className="flex justify-between">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => openDetailsDialog(trip)}
+          >
+            <Eye className="h-4 w-4 mr-1" />
+            Ver
+          </Button>
+          <div className="space-x-1">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => openEditDialog(trip)}
+            >
+              <Edit className="h-4 w-4" />
+            </Button>
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button variant="outline" size="sm">
+                  <Trash2 className="h-4 w-4" />
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>¿Eliminar viaje?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    Esta acción no se puede deshacer. Se eliminará permanentemente el viaje "{trip.destino}".
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                  <AlertDialogAction onClick={() => handleDeleteTrip(trip.id)}>
+                    Eliminar
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  )
+
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
@@ -686,80 +764,75 @@ export function TripsManager({ trips, onDataChange }: TripsManagerProps) {
         </Dialog>
       </div>
 
-      {/* Grid de tarjetas de viajes - Diseño anterior restaurado */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-        {trips.filter(trip => !trip.archived).map((trip) => (
-          <Card key={trip.id} className="hover:shadow-lg transition-shadow">
-            <CardHeader className="pb-3">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center space-x-2">
-                  {getTripIcon(trip.type)}
-                  <CardTitle className="text-lg">{trip.destino}</CardTitle>
-                </div>
-                <Badge variant="secondary">
-                  {getTripTypeLabel(trip.type)}
-                </Badge>
+      {/* Tabs por tipo de viaje */}
+      <Tabs defaultValue="individual" className="w-full">
+        <TabsList className="grid w-full grid-cols-4">
+          <TabsTrigger value="individual" className="flex items-center space-x-2">
+            <Bus className="h-4 w-4" />
+            <span>Individual ({individualTrips.length})</span>
+          </TabsTrigger>
+          <TabsTrigger value="grupal" className="flex items-center space-x-2">
+            <Users className="h-4 w-4" />
+            <span>Grupal ({grupalTrips.length})</span>
+          </TabsTrigger>
+          <TabsTrigger value="aereo" className="flex items-center space-x-2">
+            <Plane className="h-4 w-4" />
+            <span>Aéreo ({aereoTrips.length})</span>
+          </TabsTrigger>
+          <TabsTrigger value="crucero" className="flex items-center space-x-2">
+            <Ship className="h-4 w-4" />
+            <span>Crucero ({cruceroTrips.length})</span>
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="individual" className="space-y-4">
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+            {individualTrips.length > 0 ? (
+              individualTrips.map(renderTripCard)
+            ) : (
+              <div className="col-span-full text-center py-8 text-muted-foreground">
+                No hay viajes individuales registrados
               </div>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <div className="flex items-center text-sm text-muted-foreground">
-                <Calendar className="h-4 w-4 mr-2" />
-                {trip.fechaSalida.toLocaleDateString('es-ES')} - {trip.fechaRegreso.toLocaleDateString('es-ES')}
+            )}
+          </div>
+        </TabsContent>
+
+        <TabsContent value="grupal" className="space-y-4">
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+            {grupalTrips.length > 0 ? (
+              grupalTrips.map(renderTripCard)
+            ) : (
+              <div className="col-span-full text-center py-8 text-muted-foreground">
+                No hay viajes grupales registrados
               </div>
-              <div className="flex items-center text-sm text-muted-foreground">
-                <DollarSign className="h-4 w-4 mr-2" />
-                {trip.currency} ${trip.importe.toLocaleString()}
+            )}
+          </div>
+        </TabsContent>
+
+        <TabsContent value="aereo" className="space-y-4">
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+            {aereoTrips.length > 0 ? (
+              aereoTrips.map(renderTripCard)
+            ) : (
+              <div className="col-span-full text-center py-8 text-muted-foreground">
+                No hay viajes aéreos registrados
               </div>
-              {trip.descripcion && (
-                <p className="text-sm text-muted-foreground line-clamp-2">
-                  {trip.descripcion}
-                </p>
-              )}
-              <Separator />
-              <div className="flex justify-between">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => openDetailsDialog(trip)}
-                >
-                  <Eye className="h-4 w-4 mr-1" />
-                  Ver
-                </Button>
-                <div className="space-x-1">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => openEditDialog(trip)}
-                  >
-                    <Edit className="h-4 w-4" />
-                  </Button>
-                  <AlertDialog>
-                    <AlertDialogTrigger asChild>
-                      <Button variant="outline" size="sm">
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </AlertDialogTrigger>
-                    <AlertDialogContent>
-                      <AlertDialogHeader>
-                        <AlertDialogTitle>¿Eliminar viaje?</AlertDialogTitle>
-                        <AlertDialogDescription>
-                          Esta acción no se puede deshacer. Se eliminará permanentemente el viaje "{trip.destino}".
-                        </AlertDialogDescription>
-                      </AlertDialogHeader>
-                      <AlertDialogFooter>
-                        <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                        <AlertDialogAction onClick={() => handleDeleteTrip(trip.id)}>
-                          Eliminar
-                        </AlertDialogAction>
-                      </AlertDialogFooter>
-                    </AlertDialogContent>
-                  </AlertDialog>
-                </div>
+            )}
+          </div>
+        </TabsContent>
+
+        <TabsContent value="crucero" className="space-y-4">
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+            {cruceroTrips.length > 0 ? (
+              cruceroTrips.map(renderTripCard)
+            ) : (
+              <div className="col-span-full text-center py-8 text-muted-foreground">
+                No hay cruceros registrados
               </div>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
+            )}
+          </div>
+        </TabsContent>
+      </Tabs>
 
       {/* Dialog para editar viaje */}
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
