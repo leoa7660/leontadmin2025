@@ -43,36 +43,40 @@ export async function createBackup() {
 // Función para validar integridad de datos
 export async function validateDataIntegrity() {
   try {
-    // Verificar referencias huérfanas
-    const orphanedTripPassengers = await supabaseAdmin
+    // Verificar referencias huérfanas en trip_passengers
+    const { data: tripPassengers } = await supabaseAdmin
       .from("trip_passengers")
       .select("id, trip_id, client_id")
-      .not(
-        "trip_id",
-        "in",
-        `(${await supabaseAdmin
-          .from("trips")
-          .select("id")
-          .then((r) => r.data?.map((t) => t.id).join(",") || "")})`,
-      )
 
-    const orphanedPayments = await supabaseAdmin
+    const { data: trips } = await supabaseAdmin
+      .from("trips")
+      .select("id")
+
+    const { data: clients } = await supabaseAdmin
+      .from("clients")
+      .select("id")
+
+    const tripIds = new Set(trips?.map(t => t.id) || [])
+    const clientIds = new Set(clients?.map(c => c.id) || [])
+
+    const orphanedTripPassengers = tripPassengers?.filter(tp => 
+      !tripIds.has(tp.trip_id) || !clientIds.has(tp.client_id)
+    ) || []
+
+    // Verificar referencias huérfanas en payments
+    const { data: payments } = await supabaseAdmin
       .from("payments")
       .select("id, trip_id, client_id")
-      .not(
-        "trip_id",
-        "in",
-        `(${await supabaseAdmin
-          .from("trips")
-          .select("id")
-          .then((r) => r.data?.map((t) => t.id).join(",") || "")})`,
-      )
+
+    const orphanedPayments = payments?.filter(p => 
+      !tripIds.has(p.trip_id) || !clientIds.has(p.client_id)
+    ) || []
 
     return {
-      isValid: orphanedTripPassengers.data?.length === 0 && orphanedPayments.data?.length === 0,
+      isValid: orphanedTripPassengers.length === 0 && orphanedPayments.length === 0,
       issues: {
-        orphanedTripPassengers: orphanedTripPassengers.data || [],
-        orphanedPayments: orphanedPayments.data || [],
+        orphanedTripPassengers,
+        orphanedPayments,
       },
     }
   } catch (error) {
