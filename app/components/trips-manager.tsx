@@ -116,6 +116,8 @@ export function TripsManager({
   const [currentTripPassengers, setCurrentTripPassengers] = useState<TripPassenger[]>([])
   const [loading, setLoading] = useState(false)
   const [selectedPassenger, setSelectedPassenger] = useState<TripPassenger | null>(null)
+  const [showBusLayout, setShowBusLayout] = useState(false)
+  const [selectedBus, setSelectedBus] = useState<Bus | null>(null)
 
   const [formData, setFormData] = useState({
     destino: '',
@@ -771,6 +773,12 @@ export function TripsManager({
     setSelectedTrip(null)
   }
 
+  const getOccupiedSeats = (tripId: string): number[] => {
+    return tripPassengers
+      .filter(p => p.tripId === tripId && p.numeroAsiento)
+      .map(p => p.numeroAsiento!)
+  }
+
   const resetPassengerForm = () => {
     setPassengerFormData({
       clientId: '',
@@ -778,6 +786,8 @@ export function TripsManager({
       numeroCabina: '',
       pagado: false
     })
+    setShowBusLayout(false)
+    setSelectedBus(null)
   }
 
   const openEditDialog = (trip: Trip) => {
@@ -927,6 +937,104 @@ export function TripsManager({
       </CardContent>
     </Card>
   )
+
+  const BusLayoutSelector = ({ bus, occupiedSeats, onSeatSelect }: {
+    bus: Bus
+    occupiedSeats: number[]
+    onSeatSelect: (seatNumber: number) => void
+  }) => {
+    const totalSeats = bus.asientos
+    const seatsPerRow = 4 // 2 asientos por cada lado del pasillo
+    const rows = Math.ceil(totalSeats / seatsPerRow)
+    
+    const renderSeat = (seatNumber: number) => {
+      const isOccupied = occupiedSeats.includes(seatNumber)
+      const isSelected = parseInt(passengerFormData.numeroAsiento) === seatNumber
+      
+      return (
+        <button
+          key={seatNumber}
+          type="button"
+          onClick={() => !isOccupied && onSeatSelect(seatNumber)}
+          disabled={isOccupied}
+          className={`
+            w-8 h-8 m-1 rounded text-xs font-medium border-2 transition-all
+            ${isOccupied 
+              ? 'bg-red-500 text-white border-red-600 cursor-not-allowed' 
+              : isSelected
+              ? 'bg-blue-500 text-white border-blue-600'
+              : 'bg-green-100 text-green-800 border-green-300 hover:bg-green-200'
+            }
+          `}
+          title={isOccupied ? 'Asiento ocupado' : `Asiento ${seatNumber}`}
+        >
+          {seatNumber}
+        </button>
+      )
+    }
+
+    return (
+      <div className="p-4 border rounded-lg bg-gray-50">
+        <div className="text-center mb-4">
+          <h4 className="font-medium text-lg">Plano del Bus - {bus.patente}</h4>
+          <p className="text-sm text-gray-600">Selecciona un asiento disponible</p>
+          <div className="flex justify-center items-center space-x-4 mt-2 text-xs">
+            <div className="flex items-center">
+              <div className="w-4 h-4 bg-green-100 border border-green-300 rounded mr-1"></div>
+              <span>Disponible</span>
+            </div>
+            <div className="flex items-center">
+              <div className="w-4 h-4 bg-blue-500 border border-blue-600 rounded mr-1"></div>
+              <span>Seleccionado</span>
+            </div>
+            <div className="flex items-center">
+              <div className="w-4 h-4 bg-red-500 border border-red-600 rounded mr-1"></div>
+              <span>Ocupado</span>
+            </div>
+          </div>
+        </div>
+        
+        {/* Frente del bus */}
+        <div className="text-center mb-2">
+          <div className="inline-block bg-gray-300 px-4 py-1 rounded text-xs font-medium">
+            FRENTE DEL BUS
+          </div>
+        </div>
+        
+        {/* Asientos */}
+        <div className="max-w-xs mx-auto">
+          {Array.from({ length: rows }, (_, rowIndex) => (
+            <div key={rowIndex} className="flex justify-center items-center mb-1">
+              {/* Asientos del lado izquierdo */}
+              <div className="flex">
+                {[1, 2].map(seatInRow => {
+                  const seatNumber = rowIndex * seatsPerRow + seatInRow
+                  return seatNumber <= totalSeats ? renderSeat(seatNumber) : null
+                })}
+              </div>
+              
+              {/* Pasillo */}
+              <div className="w-6 text-center text-xs text-gray-400">
+                {rowIndex + 1}
+              </div>
+              
+              {/* Asientos del lado derecho */}
+              <div className="flex">
+                {[3, 4].map(seatInRow => {
+                  const seatNumber = rowIndex * seatsPerRow + seatInRow
+                  return seatNumber <= totalSeats ? renderSeat(seatNumber) : null
+                })}
+              </div>
+            </div>
+          ))}
+        </div>
+        
+        <div className="text-center mt-4 text-sm text-gray-600">
+          Total de asientos: {totalSeats} | Ocupados: {occupiedSeats.length} | Disponibles: {totalSeats - occupiedSeats.length}
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="space-y-6">
@@ -1337,6 +1445,58 @@ export function TripsManager({
                                 onChange={(e) => setPassengerFormData({ ...passengerFormData, numeroCabina: e.target.value })}
                                 placeholder="Ej: A101, B205"
                               />
+                            </div>
+                          ) : selectedTrip.type === 'grupal' && selectedTrip.busId ? (
+                            <div className="space-y-4">
+                              <div className="flex items-center justify-between">
+                                <Label>Selección de Asiento</Label>
+                                <Button
+                                  type="button"
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => {
+                                    const bus = buses.find(b => b.id === selectedTrip.busId)
+                                    if (bus) {
+                                      setSelectedBus(bus)
+                                      setShowBusLayout(!showBusLayout)
+                                    }
+                                  }}
+                                >
+                                  {showBusLayout ? 'Ocultar Plano' : 'Ver Plano del Bus'}
+                                </Button>
+                              </div>
+                              
+                              <div className="grid grid-cols-2 gap-4">
+                                <div>
+                                  <Label htmlFor="numeroAsiento">Número de Asiento</Label>
+                                  <Input
+                                    id="numeroAsiento"
+                                    value={passengerFormData.numeroAsiento}
+                                    onChange={(e) => setPassengerFormData({ ...passengerFormData, numeroAsiento: e.target.value })}
+                                    placeholder="Selecciona del plano o ingresa manualmente"
+                                  />
+                                </div>
+                                <div className="flex items-end">
+                                  <Button
+                                    type="button"
+                                    variant="outline"
+                                    onClick={() => setPassengerFormData({ ...passengerFormData, numeroAsiento: '' })}
+                                    className="w-full"
+                                  >
+                                    Limpiar Selección
+                                  </Button>
+                                </div>
+                              </div>
+                              
+                              {showBusLayout && selectedBus && (
+                                <BusLayoutSelector
+                                  bus={selectedBus}
+                                  occupiedSeats={getOccupiedSeats(selectedTrip.id)}
+                                  onSeatSelect={(seatNumber) => {
+                                    setPassengerFormData({ ...passengerFormData, numeroAsiento: seatNumber.toString() })
+                                  }}
+                                />
+                              )}
                             </div>
                           ) : (
                             <div>
