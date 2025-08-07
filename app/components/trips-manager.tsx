@@ -13,7 +13,7 @@ import { Separator } from '@/components/ui/separator'
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog'
 import { Textarea } from '@/components/ui/textarea'
 import { toast } from '@/hooks/use-toast'
-import { Plane, Ship, Bus, Users, Calendar, MapPin, DollarSign, FileDown, Trash2, Edit, Plus, UserPlus, Printer, Eye, Archive, CreditCard } from 'lucide-react'
+import { Plane, Ship, Bus, Users, Calendar, DollarSign, FileDown, Trash2, Edit, Plus, UserPlus, Printer, Eye, Archive, CreditCard } from 'lucide-react'
 import * as XLSX from 'xlsx'
 import jsPDF from 'jspdf'
 import { 
@@ -23,7 +23,6 @@ import {
   createTripPassenger, 
   updateTripPassenger,
   deleteTripPassenger,
-  getTrips,
   getTripPassengers,
   getClients,
   getBuses,
@@ -73,21 +72,48 @@ interface TripPassenger {
   fechaReserva: Date
 }
 
+interface Payment {
+  id: string
+  clientId: string
+  tripId: string
+  amount: number
+  currency: 'ARS' | 'USD'
+  type: 'payment' | 'charge'
+  description: string
+  date: Date
+  receiptNumber?: string
+}
+
 interface TripsManagerProps {
   trips: Trip[]
+  setTrips: React.Dispatch<React.SetStateAction<Trip[]>>
+  buses: Bus[]
+  clients: Client[]
+  tripPassengers: TripPassenger[]
+  setTripPassengers: React.Dispatch<React.SetStateAction<TripPassenger[]>>
+  payments: Payment[]
+  setPayments: React.Dispatch<React.SetStateAction<Payment[]>>
   onDataChange: () => void
 }
 
-export function TripsManager({ trips, onDataChange }: TripsManagerProps) {
+export function TripsManager({ 
+  trips, 
+  setTrips, 
+  buses, 
+  clients, 
+  tripPassengers, 
+  setTripPassengers, 
+  payments, 
+  setPayments, 
+  onDataChange 
+}: TripsManagerProps) {
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false)
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
   const [isDetailsDialogOpen, setIsDetailsDialogOpen] = useState(false)
   const [isAddPassengerDialogOpen, setIsAddPassengerDialogOpen] = useState(false)
   const [isChargeDialogOpen, setIsChargeDialogOpen] = useState(false)
   const [selectedTrip, setSelectedTrip] = useState<Trip | null>(null)
-  const [tripPassengers, setTripPassengers] = useState<TripPassenger[]>([])
-  const [clients, setClients] = useState<Client[]>([])
-  const [buses, setBuses] = useState<Bus[]>([])
+  const [currentTripPassengers, setCurrentTripPassengers] = useState<TripPassenger[]>([])
   const [loading, setLoading] = useState(false)
   const [selectedPassenger, setSelectedPassenger] = useState<TripPassenger | null>(null)
 
@@ -113,48 +139,12 @@ export function TripsManager({ trips, onDataChange }: TripsManagerProps) {
     amount: '',
     currency: 'ARS' as 'ARS' | 'USD',
     description: '',
-    receiptNumber: '',
-    paymentMethod: 'efectivo'
+    receiptNumber: ''
   })
 
-  useEffect(() => {
-    loadClients()
-    loadBuses()
-  }, [])
-
-  const loadClients = async () => {
+  const loadTripPassengers = (tripId: string) => {
     try {
-      const clientsData = await getClients()
-      setClients(clientsData)
-    } catch (error) {
-      console.error('Error loading clients:', error)
-      toast({
-        title: "Error",
-        description: "No se pudieron cargar los clientes",
-        variant: "destructive"
-      })
-    }
-  }
-
-  const loadBuses = async () => {
-    try {
-      const busesData = await getBuses()
-      setBuses(busesData)
-    } catch (error) {
-      console.error('Error loading buses:', error)
-      toast({
-        title: "Error",
-        description: "No se pudieron cargar los buses",
-        variant: "destructive"
-      })
-    }
-  }
-
-  const loadTripPassengers = async (tripId: string) => {
-    try {
-      setLoading(true)
-      const allPassengers = await getTripPassengers()
-      const filteredPassengers = allPassengers.filter(p => p.tripId === tripId)
+      const filteredPassengers = tripPassengers.filter(p => p.tripId === tripId)
       
       // Ordenar pasajeros por número de asiento/cabina
       const sortedPassengers = filteredPassengers.sort((a, b) => {
@@ -169,7 +159,7 @@ export function TripsManager({ trips, onDataChange }: TripsManagerProps) {
         }
       })
       
-      setTripPassengers(sortedPassengers)
+      setCurrentTripPassengers(sortedPassengers)
     } catch (error) {
       console.error('Error loading trip passengers:', error)
       toast({
@@ -177,8 +167,6 @@ export function TripsManager({ trips, onDataChange }: TripsManagerProps) {
         description: "No se pudieron cargar los pasajeros del viaje",
         variant: "destructive"
       })
-    } finally {
-      setLoading(false)
     }
   }
 
@@ -208,6 +196,7 @@ export function TripsManager({ trips, onDataChange }: TripsManagerProps) {
       resetForm()
       onDataChange()
     } catch (error) {
+      console.error('Error creating trip:', error)
       toast({
         title: "Error",
         description: "No se pudo crear el viaje",
@@ -245,6 +234,7 @@ export function TripsManager({ trips, onDataChange }: TripsManagerProps) {
       resetForm()
       onDataChange()
     } catch (error) {
+      console.error('Error updating trip:', error)
       toast({
         title: "Error",
         description: "No se pudo actualizar el viaje",
@@ -264,6 +254,7 @@ export function TripsManager({ trips, onDataChange }: TripsManagerProps) {
       })
       onDataChange()
     } catch (error) {
+      console.error('Error deleting trip:', error)
       toast({
         title: "Error",
         description: "No se pudo eliminar el viaje",
@@ -294,8 +285,10 @@ export function TripsManager({ trips, onDataChange }: TripsManagerProps) {
 
       setIsAddPassengerDialogOpen(false)
       resetPassengerForm()
+      onDataChange()
       loadTripPassengers(selectedTrip.id)
     } catch (error) {
+      console.error('Error adding passenger:', error)
       toast({
         title: "Error",
         description: "No se pudo agregar el pasajero",
@@ -313,10 +306,12 @@ export function TripsManager({ trips, onDataChange }: TripsManagerProps) {
         title: "Éxito",
         description: "Pasajero eliminado correctamente"
       })
+      onDataChange()
       if (selectedTrip) {
         loadTripPassengers(selectedTrip.id)
       }
     } catch (error) {
+      console.error('Error deleting passenger:', error)
       toast({
         title: "Error",
         description: "No se pudo eliminar el pasajero",
@@ -334,6 +329,7 @@ export function TripsManager({ trips, onDataChange }: TripsManagerProps) {
       })
       onDataChange()
     } catch (error) {
+      console.error('Error archiving trip:', error)
       toast({
         title: "Error",
         description: "No se pudo archivar el viaje",
@@ -352,6 +348,8 @@ export function TripsManager({ trips, onDataChange }: TripsManagerProps) {
       const client = clients.find(c => c.id === selectedPassenger.clientId)
       if (!client) throw new Error('Cliente no encontrado')
 
+      const receiptNumber = chargeData.receiptNumber || `REC-${Date.now()}`
+
       // Crear el pago
       await createPayment({
         clientId: selectedPassenger.clientId,
@@ -360,11 +358,14 @@ export function TripsManager({ trips, onDataChange }: TripsManagerProps) {
         currency: chargeData.currency,
         type: 'payment',
         description: `Pago por viaje a ${selectedTrip.destino} - ${chargeData.description}`,
-        receiptNumber: chargeData.receiptNumber || `REC-${Date.now()}`
+        receiptNumber: receiptNumber
       })
 
       // Actualizar estado de pago del pasajero
       await updateTripPassenger(selectedPassenger.id, { pagado: true })
+
+      // Generar e imprimir recibo
+      printReceipt(selectedPassenger, parseFloat(chargeData.amount), chargeData.currency, receiptNumber)
 
       toast({
         title: "Éxito",
@@ -373,8 +374,12 @@ export function TripsManager({ trips, onDataChange }: TripsManagerProps) {
 
       setIsChargeDialogOpen(false)
       resetChargeForm()
-      loadTripPassengers(selectedTrip.id)
+      onDataChange()
+      if (selectedTrip) {
+        loadTripPassengers(selectedTrip.id)
+      }
     } catch (error) {
+      console.error('Error processing charge:', error)
       toast({
         title: "Error",
         description: "No se pudo registrar el pago",
@@ -550,13 +555,204 @@ export function TripsManager({ trips, onDataChange }: TripsManagerProps) {
     }
   }
 
+  const exportToExcel = () => {
+    if (!selectedTrip || currentTripPassengers.length === 0) {
+      toast({
+        title: "Error",
+        description: "No hay pasajeros para exportar",
+        variant: "destructive"
+      })
+      return
+    }
+
+    try {
+      const data = currentTripPassengers.map(passenger => {
+        const client = clients.find(c => c.id === passenger.clientId)
+        const fullName = client?.name || ''
+        const nameParts = fullName.trim().split(' ')
+        const lastName = nameParts.length > 1 ? nameParts.slice(-1).join(' ') : ''
+        const firstName = nameParts.length > 1 ? nameParts.slice(0, -1).join(' ') : fullName
+
+        return {
+          'Apellido': lastName,
+          'Nombre': firstName,
+          'Fecha de Nacimiento': client?.fechaNacimiento ? 
+            client.fechaNacimiento.toLocaleDateString('es-ES') : '',
+          'Número de Documento': client?.dni || '',
+          'Teléfono': client?.phone || '',
+          'Email': client?.email || '',
+          [selectedTrip.type === 'crucero' ? 'Cabina' : 'Asiento']: 
+            selectedTrip.type === 'crucero' ? 
+            (passenger.numeroCabina || '') : 
+            (passenger.numeroAsiento?.toString() || ''),
+          'Estado de Pago': passenger.pagado ? 'Pagado' : 'Pendiente',
+          'Fecha de Reserva': passenger.fechaReserva.toLocaleDateString('es-ES')
+        }
+      })
+
+      const ws = XLSX.utils.json_to_sheet(data)
+      const wb = XLSX.utils.book_new()
+      
+      // Ajustar el ancho de las columnas
+      const colWidths = [
+        { wch: 20 }, // Apellido
+        { wch: 20 }, // Nombre
+        { wch: 18 }, // Fecha de Nacimiento
+        { wch: 15 }, // Número de Documento
+        { wch: 15 }, // Teléfono
+        { wch: 25 }, // Email
+        { wch: 10 }, // Asiento/Cabina
+        { wch: 15 }, // Estado de Pago
+        { wch: 15 }  // Fecha de Reserva
+      ]
+      ws['!cols'] = colWidths
+
+      XLSX.utils.book_append_sheet(wb, ws, 'Pasajeros')
+      const departureDate = selectedTrip.fechaSalida.toLocaleDateString('es-ES').replace(/\//g, '-')
+      const fileName = `Pasajeros_${selectedTrip.destino}_${departureDate}.xlsx`
+      XLSX.writeFile(wb, fileName)
+      
+      toast({
+        title: "Éxito",
+        description: `Lista de pasajeros exportada como ${fileName}`
+      })
+    } catch (error) {
+      console.error('Error exporting to Excel:', error)
+      toast({
+        title: "Error",
+        description: "No se pudo exportar a Excel",
+        variant: "destructive"
+      })
+    }
+  }
+
+  const generatePDF = () => {
+    if (!selectedTrip || currentTripPassengers.length === 0) {
+      toast({
+        title: "Error",
+        description: "No hay pasajeros para generar el PDF",
+        variant: "destructive"
+      })
+      return
+    }
+
+    try {
+      const doc = new jsPDF()
+      
+      // Título del documento
+      doc.setFontSize(18)
+      doc.setFont('helvetica', 'bold')
+      doc.text(`Lista de Pasajeros - ${selectedTrip.destino}`, 20, 20)
+      
+      // Información del viaje
+      doc.setFontSize(12)
+      doc.setFont('helvetica', 'normal')
+      doc.text(`Fecha de Salida: ${selectedTrip.fechaSalida.toLocaleDateString('es-ES')}`, 20, 35)
+      doc.text(`Fecha de Regreso: ${selectedTrip.fechaRegreso.toLocaleDateString('es-ES')}`, 20, 45)
+      doc.text(`Precio: ${selectedTrip.currency} $${selectedTrip.importe.toLocaleString()}`, 20, 55)
+      
+      // Obtener y ordenar pasajeros alfabéticamente
+      const passengersWithClients = currentTripPassengers
+        .map(passenger => {
+          const client = clients.find(c => c.id === passenger.clientId)
+          return { passenger, client }
+        })
+        .filter(item => item.client)
+        .sort((a, b) => {
+          const nameA = `${a.client!.name}`.toLowerCase()
+          const nameB = `${b.client!.name}`.toLowerCase()
+          return nameA.localeCompare(nameB)
+        })
+
+      // Encabezados de la tabla
+      let yPosition = 75
+      doc.setFont('helvetica', 'bold')
+      doc.text('N°', 20, yPosition)
+      doc.text('Apellido y Nombre', 35, yPosition)
+      doc.text('N° Documento', 120, yPosition)
+      doc.text('Fecha Nacimiento', 160, yPosition)
+      
+      // Línea separadora
+      doc.line(20, yPosition + 3, 190, yPosition + 3)
+      
+      // Datos de los pasajeros
+      doc.setFont('helvetica', 'normal')
+      yPosition += 15
+      
+      passengersWithClients.forEach((item, index) => {
+        const { client } = item
+        
+        // Verificar si necesitamos una nueva página
+        if (yPosition > 270) {
+          doc.addPage()
+          yPosition = 20
+          
+          // Repetir encabezados en nueva página
+          doc.setFont('helvetica', 'bold')
+          doc.text('N°', 20, yPosition)
+          doc.text('Apellido y Nombre', 35, yPosition)
+          doc.text('N° Documento', 120, yPosition)
+          doc.text('Fecha Nacimiento', 160, yPosition)
+          doc.line(20, yPosition + 3, 190, yPosition + 3)
+          doc.setFont('helvetica', 'normal')
+          yPosition += 15
+        }
+        
+        // Número correlativo
+        doc.text(`${index + 1}`, 20, yPosition)
+        
+        // Apellido y nombre
+        const fullName = client!.name || ''
+        doc.text(fullName, 35, yPosition)
+        
+        // Número de documento
+        doc.text(client!.dni || '', 120, yPosition)
+        
+        // Fecha de nacimiento
+        const birthDate = client!.fechaNacimiento ? 
+          client!.fechaNacimiento.toLocaleDateString('es-ES') : ''
+        doc.text(birthDate, 160, yPosition)
+        
+        yPosition += 10
+      })
+      
+      // Pie de página con fecha de generación
+      const pageCount = doc.getNumberOfPages()
+      for (let i = 1; i <= pageCount; i++) {
+        doc.setPage(i)
+        doc.setFontSize(8)
+        doc.setFont('helvetica', 'normal')
+        doc.text(
+          `Generado el ${new Date().toLocaleDateString('es-ES')} - Página ${i} de ${pageCount}`,
+          20,
+          285
+        )
+      }
+      
+      // Guardar el PDF
+      const fileName = `Lista_Pasajeros_${selectedTrip.destino}_${selectedTrip.fechaSalida.toLocaleDateString('es-ES').replace(/\//g, '-')}.pdf`
+      doc.save(fileName)
+      
+      toast({
+        title: "Éxito",
+        description: "Lista de pasajeros generada en PDF correctamente"
+      })
+    } catch (error) {
+      console.error('Error generating PDF:', error)
+      toast({
+        title: "Error",
+        description: "No se pudo generar el PDF",
+        variant: "destructive"
+      })
+    }
+  }
+
   const resetChargeForm = () => {
     setChargeData({
       amount: '',
       currency: 'ARS',
       description: '',
-      receiptNumber: '',
-      paymentMethod: 'efectivo'
+      receiptNumber: ''
     })
     setSelectedPassenger(null)
   }
@@ -1057,7 +1253,7 @@ export function TripsManager({ trips, onDataChange }: TripsManagerProps) {
             <Tabs defaultValue="info" className="w-full">
               <TabsList className="grid w-full grid-cols-2">
                 <TabsTrigger value="info">Información</TabsTrigger>
-                <TabsTrigger value="passengers">Pasajeros ({tripPassengers.length})</TabsTrigger>
+                <TabsTrigger value="passengers">Pasajeros ({currentTripPassengers.length})</TabsTrigger>
               </TabsList>
               <TabsContent value="info" className="space-y-4">
                 <div className="grid grid-cols-2 gap-4">
@@ -1093,7 +1289,7 @@ export function TripsManager({ trips, onDataChange }: TripsManagerProps) {
                 <div className="flex justify-between items-center">
                   <h3 className="text-lg font-semibold">Lista de Pasajeros</h3>
                   <div className="space-x-2">
-                    {tripPassengers.length > 0 && (
+                    {currentTripPassengers.length > 0 && (
                       <>
                         <Button onClick={generatePDF} variant="outline" size="sm">
                           <Printer className="h-4 w-4 mr-2" />
@@ -1178,13 +1374,13 @@ export function TripsManager({ trips, onDataChange }: TripsManagerProps) {
                     </Dialog>
                   </div>
                 </div>
-                {tripPassengers.length === 0 ? (
+                {currentTripPassengers.length === 0 ? (
                   <p className="text-center text-muted-foreground py-8">
                     No hay pasajeros registrados para este viaje
                   </p>
                 ) : (
                   <div className="space-y-2">
-                    {tripPassengers.map((passenger) => {
+                    {currentTripPassengers.map((passenger) => {
                       const client = clients.find(c => c.id === passenger.clientId)
                       if (!client) return null
                       
